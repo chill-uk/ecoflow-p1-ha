@@ -32,15 +32,21 @@ It does **not** use the EcoFlow cloud API.
 
 ## Sensors
 
-Sensors are created when their corresponding OBIS field is present and valid:
+All supported electricity sensors are registered so they can be enabled from
+Home Assistant even if a field is temporarily absent. A sensor remains
+unavailable until its corresponding OBIS field is present and valid:
 
 - Imported and exported energy for tariff 1 and tariff 2
-- Current imported and exported power
+- Current imported and exported power, reported in watts
 - Active tariff
 - Voltage, current, imported power and exported power per phase
 - Power failure, long power failure, voltage sag and voltage swell counters
 - Gas, water or energy consumption from discovered M-Bus meters
 - EcoFlow telegram counters as disabled diagnostic sensors
+
+Aggregate and L1 measurement entities are enabled by default. L2 and L3
+voltage, current and power entities are registered but disabled by default, as
+are the diagnostic counters.
 
 Malformed optional fields are ignored without discarding the rest of the
 telegram.
