@@ -42,9 +42,11 @@ def _install_sensor_stubs() -> None:
         translation_key: str | None = None
         device_class: str | None = None
         native_unit_of_measurement: str | None = None
+        suggested_unit_of_measurement: str | None = None
         state_class: str | None = None
         entity_category: str | None = None
         entity_registry_enabled_default: bool = True
+        icon: str | None = None
 
     sensor_component.SensorDeviceClass = SensorDeviceClass
     sensor_component.SensorEntity = SensorEntity
@@ -61,7 +63,7 @@ def _install_sensor_stubs() -> None:
     ha_const.UnitOfElectricCurrent = SimpleNamespace(AMPERE="A")
     ha_const.UnitOfElectricPotential = SimpleNamespace(VOLT="V")
     ha_const.UnitOfEnergy = SimpleNamespace(KILO_WATT_HOUR="kWh")
-    ha_const.UnitOfPower = SimpleNamespace(WATT="W")
+    ha_const.UnitOfPower = SimpleNamespace(WATT="W", KILO_WATT="kW")
     ha_const.UnitOfVolume = SimpleNamespace(CUBIC_METERS="m3")
 
     core = sys.modules.setdefault(
@@ -143,10 +145,13 @@ def _data_with_channel(channel) -> object:
 class FakeRegistry:
     """Record entity-registry migrations and removals."""
 
-    def __init__(self, entries):
+    def __init__(self, entries, registry_entries=None):
         self.entries = dict(entries)
+        self.registry_entries = registry_entries or {}
         self.removed = []
         self.updated = []
+        self.unit_updates = []
+        self.option_updates = []
 
     def async_get_entity_id(self, _domain, _platform, unique_id):
         return self.entries.get(unique_id)
@@ -154,8 +159,19 @@ class FakeRegistry:
     def async_remove(self, entity_id):
         self.removed.append(entity_id)
 
-    def async_update_entity(self, entity_id, *, new_unique_id):
-        self.updated.append((entity_id, new_unique_id))
+    def async_get(self, entity_id):
+        return self.registry_entries.get(entity_id)
+
+    def async_update_entity(
+        self, entity_id, *, new_unique_id=None, unit_of_measurement="unchanged"
+    ):
+        if new_unique_id is not None:
+            self.updated.append((entity_id, new_unique_id))
+        if unit_of_measurement != "unchanged":
+            self.unit_updates.append((entity_id, unit_of_measurement))
+
+    def async_update_entity_options(self, entity_id, domain, options):
+        self.option_updates.append((entity_id, domain, options))
 
 
 class SensorTests(unittest.TestCase):
@@ -187,7 +203,50 @@ class SensorTests(unittest.TestCase):
         for description in power_descriptions:
             with self.subTest(key=description.key):
                 self.assertEqual(description.native_unit_of_measurement, "W")
+                self.assertEqual(description.suggested_unit_of_measurement, "W")
                 self.assertEqual(description.value_multiplier, Decimal(1000))
+
+    def test_clears_automatic_legacy_kw_preference(self) -> None:
+        """Stop Home Assistant converting native watts back to the former kW unit."""
+        power = next(
+            item for item in sensor.SENSOR_DESCRIPTIONS if item.key == "power_import"
+        )
+        unique_id = f"P1-123_{power.key}"
+        registry = FakeRegistry(
+            {unique_id: "sensor.power_consumption"},
+            {
+                "sensor.power_consumption": SimpleNamespace(
+                    unit_of_measurement="kW",
+                    options={
+                        "sensor": {"unit_of_measurement": "kW"},
+                        "sensor.private": {"suggested_unit_of_measurement": "kW"},
+                    },
+                )
+            },
+        )
+        sensor.er.async_get = lambda _hass: registry
+
+        sensor._migrate_legacy_power_units(None, "P1-123")
+
+        self.assertEqual(
+            registry.option_updates,
+            [("sensor.power_consumption", "sensor.private", None)],
+        )
+        self.assertEqual(
+            registry.unit_updates,
+            [("sensor.power_consumption", None)],
+        )
+        self.assertEqual(
+            registry.registry_entries["sensor.power_consumption"].options["sensor"],
+            {"unit_of_measurement": "kW"},
+        )
+
+    def test_homey_style_diagnostic_icons(self) -> None:
+        """Use the same diagnostic symbols as Homey P1."""
+        descriptions = {item.key: item for item in sensor.SENSOR_DESCRIPTIONS}
+        self.assertEqual(descriptions["active_tariff"].icon, "mdi:counter")
+        self.assertEqual(descriptions["power_failures"].icon, "mdi:flash-alert")
+        self.assertEqual(descriptions["voltage_sags_l1"].icon, "mdi:sine-wave")
 
     def test_l1_enabled_and_l2_l3_disabled_by_default(self) -> None:
         """Enable useful L1 readings while keeping absent phases quiet."""

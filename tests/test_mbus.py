@@ -32,6 +32,12 @@ class MBusTests(unittest.TestCase):
         channel = models.MBusChannel(1, device_type=15, unit="m3")
         self.assertIsNone(mbus.classify_mbus_channel(channel))
 
+    def test_uses_homey_meter_labels(self) -> None:
+        """Use consistent meter names across both P1 integrations."""
+        self.assertEqual(mbus.mbus_device_type_name(3), "Gas meter")
+        self.assertEqual(mbus.mbus_device_type_name(6), "Hot water meter")
+        self.assertEqual(mbus.mbus_device_type_name(7), "Water meter")
+
 
 if __name__ == "__main__":
     unittest.main()
