@@ -22,12 +22,122 @@
     "step": {
       "init": {
         "title": "EcoFlow P1 options",
-        "description": "Choose how often Home Assistant requests the local DSMR telegram.",
+        "description": "Change the local address or how often Home Assistant requests the DSMR telegram.",
         "data": {
+          "host": "Hostname or IP address",
           "poll_interval": "Polling interval (seconds)"
         }
+      }
+    },
+    "error": {
+      "already_configured": "This address is already used by another EcoFlow P1 entry",
+      "cannot_connect": "Failed to connect",
+      "invalid_host": "Enter a valid hostname or IP address on port 80",
+      "invalid_response": "The device did not return a valid DSMR telegram",
+      "wrong_device": "The device at this address has a different EcoFlow P1 serial number"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "energy_import_tariff_1": {
+        "name": "Energy imported tariff 1"
+      },
+      "energy_import_tariff_2": {
+        "name": "Energy imported tariff 2"
+      },
+      "energy_export_tariff_1": {
+        "name": "Energy exported tariff 1"
+      },
+      "energy_export_tariff_2": {
+        "name": "Energy exported tariff 2"
+      },
+      "power_import": {
+        "name": "Power imported"
+      },
+      "power_export": {
+        "name": "Power exported"
+      },
+      "active_tariff": {
+        "name": "Active tariff"
+      },
+      "power_failures": {
+        "name": "Power failures"
+      },
+      "long_power_failures": {
+        "name": "Long power failures"
+      },
+      "voltage_l1": {
+        "name": "Voltage L1"
+      },
+      "voltage_l2": {
+        "name": "Voltage L2"
+      },
+      "voltage_l3": {
+        "name": "Voltage L3"
+      },
+      "current_l1": {
+        "name": "Current L1"
+      },
+      "current_l2": {
+        "name": "Current L2"
+      },
+      "current_l3": {
+        "name": "Current L3"
+      },
+      "power_import_l1": {
+        "name": "Power imported L1"
+      },
+      "power_import_l2": {
+        "name": "Power imported L2"
+      },
+      "power_import_l3": {
+        "name": "Power imported L3"
+      },
+      "power_export_l1": {
+        "name": "Power exported L1"
+      },
+      "power_export_l2": {
+        "name": "Power exported L2"
+      },
+      "power_export_l3": {
+        "name": "Power exported L3"
+      },
+      "voltage_sags_l1": {
+        "name": "Voltage sags L1"
+      },
+      "voltage_sags_l2": {
+        "name": "Voltage sags L2"
+      },
+      "voltage_sags_l3": {
+        "name": "Voltage sags L3"
+      },
+      "voltage_swells_l1": {
+        "name": "Voltage swells L1"
+      },
+      "voltage_swells_l2": {
+        "name": "Voltage swells L2"
+      },
+      "voltage_swells_l3": {
+        "name": "Voltage swells L3"
+      },
+      "timeout_times": {
+        "name": "Telegram timeouts"
+      },
+      "crc_error_times": {
+        "name": "Telegram CRC errors"
+      },
+      "total_times": {
+        "name": "Telegram attempts"
+      },
+      "mbus_gas": {
+        "name": "Gas consumption"
+      },
+      "mbus_water": {
+        "name": "Water consumption"
+      },
+      "mbus_energy": {
+        "name": "Energy delivered"
       }
     }
   }
 }
-

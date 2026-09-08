@@ -26,12 +26,12 @@ type EcoFlowP1ConfigEntry = ConfigEntry[EcoFlowP1RuntimeData]
 
 async def async_setup_entry(hass: HomeAssistant, entry: EcoFlowP1ConfigEntry) -> bool:
     """Set up EcoFlow P1 from a config entry."""
-    api = EcoFlowP1Api(async_get_clientsession(hass), entry.data[CONF_HOST])
+    host = entry.options.get(CONF_HOST, entry.data[CONF_HOST])
+    api = EcoFlowP1Api(async_get_clientsession(hass), host)
     coordinator = EcoFlowP1Coordinator(hass, entry, api)
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = EcoFlowP1RuntimeData(coordinator)
-    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -39,10 +39,3 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcoFlowP1ConfigEntry) ->
 async def async_unload_entry(hass: HomeAssistant, entry: EcoFlowP1ConfigEntry) -> bool:
     """Unload an EcoFlow P1 config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-
-async def _async_update_listener(
-    hass: HomeAssistant, entry: EcoFlowP1ConfigEntry
-) -> None:
-    """Reload when options change."""
-    await hass.config_entries.async_reload(entry.entry_id)

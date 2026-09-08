@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,17 +14,40 @@ class ObisValue:
 
     @property
     def value(self) -> str | None:
-        """Return the last group, which contains the reading for standard fields."""
+        """Return the final group, which contains standard OBIS readings."""
         return self.values[-1] if self.values else None
+
+
+@dataclass(frozen=True, slots=True)
+class MBusChannel:
+    """Information and the latest reading for one discovered M-Bus channel."""
+
+    channel: int
+    device_type: int | None = None
+    equipment_id: str | None = None
+    meter_serial: str | None = None
+    timestamp: str | None = None
+    delivered: Decimal | None = None
+    unit: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class MeterInfo:
     """Information discovered inside the DSMR telegram."""
 
+    manufacturer: str | None = None
+    model: str | None = None
+    dsmr_version: str | None = None
+    electricity_equipment_id: str | None = None
     electricity_serial: str | None = None
-    mbus_serials: dict[int, str] = field(default_factory=dict)
-    mbus_types: dict[int, str] = field(default_factory=dict)
+    mbus_channels: dict[int, MBusChannel] = field(default_factory=dict)
+
+    @property
+    def protocol_family(self) -> str | None:
+        """Return the protocol family inferred from the DSMR version."""
+        if self.dsmr_version is None:
+            return None
+        return "DSMR"
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,23 +66,15 @@ class ParsedTelegram:
         if item is None or item.value is None:
             return None
 
-        raw_value = item.value
-        if "*" in raw_value:
-            value, unit = raw_value.rsplit("*", 1)
-            if (
-                expected_unit is not None
-                and unit.casefold() != expected_unit.casefold()
-            ):
-                return None
-        else:
-            value = raw_value
-            if expected_unit is not None:
-                return None
-
-        try:
-            return Decimal(value)
-        except (ValueError, ArithmeticError):
+        parsed = split_number_and_unit(item.value)
+        if parsed is None:
             return None
+        value, unit = parsed
+        if expected_unit is not None and (
+            unit is None or unit.casefold() != expected_unit.casefold()
+        ):
+            return None
+        return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,3 +87,16 @@ class EcoFlowP1Data:
     timeout_times: int | None
     crc_error_times: int | None
     total_times: int | None
+
+
+def split_number_and_unit(value: str) -> tuple[Decimal, str | None] | None:
+    """Split a DSMR numeric value and optional unit without raising."""
+    number, separator, unit = value.rpartition("*")
+    if not separator:
+        number = value
+        unit = ""
+    try:
+        parsed = Decimal(number)
+    except (InvalidOperation, ValueError):
+        return None
+    return parsed, unit or None
