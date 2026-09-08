@@ -39,6 +39,7 @@ class EcoFlowP1SensorDescription(SensorEntityDescription):
     expected_unit: str | None = None
     metadata_key: str | None = None
     meter_channel: int | None = None
+    value_multiplier: Decimal = Decimal(1)
 
 
 def _energy(key: str, name: str, obis: str) -> EcoFlowP1SensorDescription:
@@ -60,7 +61,8 @@ def _power(key: str, name: str, obis: str) -> EcoFlowP1SensorDescription:
         obis=obis,
         expected_unit="kW",
         device_class=SensorDeviceClass.POWER,
-        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        value_multiplier=Decimal(1000),
         state_class=SensorStateClass.MEASUREMENT,
     )
 
@@ -235,7 +237,8 @@ def _value_for_description(
         return value if isinstance(value, int) else None
     if description.obis is None:
         return None
-    return data.telegram.decimal(description.obis, description.expected_unit)
+    value = data.telegram.decimal(description.obis, description.expected_unit)
+    return value * description.value_multiplier if value is not None else None
 
 
 class EcoFlowP1Sensor(CoordinatorEntity[EcoFlowP1Coordinator], SensorEntity):
