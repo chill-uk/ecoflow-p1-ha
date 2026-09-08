@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal
@@ -70,17 +71,19 @@ def _power(key: str, obis: str, *, enabled: bool = True) -> EcoFlowP1SensorDescr
         expected_unit="kW",
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.WATT,
+        suggested_unit_of_measurement=UnitOfPower.WATT,
         value_multiplier=Decimal(1000),
         state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=enabled,
     )
 
 
-def _count(key: str, obis: str) -> EcoFlowP1SensorDescription:
+def _count(key: str, obis: str, icon: str) -> EcoFlowP1SensorDescription:
     return EcoFlowP1SensorDescription(
         key=key,
         translation_key=key,
         obis=obis,
+        icon=icon,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -98,10 +101,11 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowP1SensorDescription, ...] = (
         key="active_tariff",
         translation_key="active_tariff",
         obis="0-0:96.14.0",
+        icon="mdi:counter",
         entity_registry_enabled_default=False,
     ),
-    _count("power_failures", "0-0:96.7.21"),
-    _count("long_power_failures", "0-0:96.7.9"),
+    _count("power_failures", "0-0:96.7.21", "mdi:flash-alert"),
+    _count("long_power_failures", "0-0:96.7.9", "mdi:flash-alert"),
     *tuple(
         EcoFlowP1SensorDescription(
             key=f"voltage_l{phase}",
@@ -152,8 +156,16 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowP1SensorDescription, ...] = (
         description
         for phase, code in ((1, 32), (2, 52), (3, 72))
         for description in (
-            _count(f"voltage_sags_l{phase}", f"1-0:{code}.32.0"),
-            _count(f"voltage_swells_l{phase}", f"1-0:{code}.36.0"),
+            _count(
+                f"voltage_sags_l{phase}",
+                f"1-0:{code}.32.0",
+                "mdi:sine-wave",
+            ),
+            _count(
+                f"voltage_swells_l{phase}",
+                f"1-0:{code}.36.0",
+                "mdi:sine-wave",
+            ),
         )
     ),
     *tuple(
@@ -183,6 +195,7 @@ async def async_setup_entry(
         config_entry_id=entry.entry_id,
         **_dongle_device_info(coordinator, base_id),
     )
+    _migrate_legacy_power_units(hass, base_id)
     _migrate_legacy_mbus_entities(hass, base_id, coordinator.data)
     known: set[str] = set()
 
@@ -243,6 +256,38 @@ def _migrate_legacy_mbus_entities(
             registry.async_remove(old_entity_id)
         else:
             registry.async_update_entity(old_entity_id, new_unique_id=new_unique_id)
+
+
+def _migrate_legacy_power_units(hass: HomeAssistant, base_id: str) -> None:
+    """Remove Home Assistant's automatic preference for the former kW unit."""
+    registry = er.async_get(hass)
+    for description in SENSOR_DESCRIPTIONS:
+        if description.device_class != SensorDeviceClass.POWER:
+            continue
+
+        unique_id = f"{base_id}_{description.key}"
+        entity_id = registry.async_get_entity_id(Platform.SENSOR, DOMAIN, unique_id)
+        if entity_id is None or (entry := registry.async_get(entity_id)) is None:
+            continue
+
+        # Home Assistant stores an integration's former native unit privately
+        # so it can preserve presentation across an integration unit change.
+        # Clear only that automatic preference; a user's explicit sensor unit
+        # option remains untouched.
+        private_options = entry.options.get("sensor.private")
+        if (
+            isinstance(private_options, Mapping)
+            and private_options.get("suggested_unit_of_measurement")
+            == UnitOfPower.KILO_WATT
+        ):
+            new_private_options = dict(private_options)
+            new_private_options.pop("suggested_unit_of_measurement")
+            registry.async_update_entity_options(
+                entity_id, "sensor.private", new_private_options or None
+            )
+
+        if entry.unit_of_measurement == UnitOfPower.KILO_WATT:
+            registry.async_update_entity(entity_id, unit_of_measurement=None)
 
 
 def _mbus_description(
@@ -369,11 +414,19 @@ def _device_info(
     channel_number = description.meter_channel
     channel = info.mbus_channels.get(channel_number) if channel_number else None
     type_name = mbus_device_type_name(channel.device_type) if channel else None
+    type_code = (
+        f"ID:{channel.device_type:03d}"
+        if channel is not None and channel.device_type is not None
+        else None
+    )
+    model = f"M-Bus {channel_number}"
+    if type_code:
+        model = f"{model} / {type_code}"
     return DeviceInfo(
         identifiers={(DOMAIN, f"{base_id}:mbus:{channel_number}")},
         via_device=parent_identifier,
-        model=type_name or "M-Bus meter",
-        name=f"{type_name or 'M-Bus meter'} (channel {channel_number})",
+        model=model,
+        name=(type_name or "M-Bus meter").title(),
         serial_number=channel.meter_serial if channel else None,
     )
 

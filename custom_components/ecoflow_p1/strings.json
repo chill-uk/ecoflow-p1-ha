@@ -40,25 +40,25 @@
   "entity": {
     "sensor": {
       "energy_import_tariff_1": {
-        "name": "Energy imported tariff 1"
+        "name": "Energy import tariff 1"
       },
       "energy_import_tariff_2": {
-        "name": "Energy imported tariff 2"
+        "name": "Energy import tariff 2"
       },
       "energy_export_tariff_1": {
-        "name": "Energy exported tariff 1"
+        "name": "Energy export tariff 1"
       },
       "energy_export_tariff_2": {
-        "name": "Energy exported tariff 2"
+        "name": "Energy export tariff 2"
       },
       "power_import": {
-        "name": "Power imported"
+        "name": "Power consumption"
       },
       "power_export": {
-        "name": "Power exported"
+        "name": "Power production"
       },
       "active_tariff": {
-        "name": "Active tariff"
+        "name": "Tariff indicator"
       },
       "power_failures": {
         "name": "Power failures"
@@ -85,22 +85,22 @@
         "name": "Current L3"
       },
       "power_import_l1": {
-        "name": "Power imported L1"
+        "name": "Power consumption L1"
       },
       "power_import_l2": {
-        "name": "Power imported L2"
+        "name": "Power consumption L2"
       },
       "power_import_l3": {
-        "name": "Power imported L3"
+        "name": "Power consumption L3"
       },
       "power_export_l1": {
-        "name": "Power exported L1"
+        "name": "Power production L1"
       },
       "power_export_l2": {
-        "name": "Power exported L2"
+        "name": "Power production L2"
       },
       "power_export_l3": {
-        "name": "Power exported L3"
+        "name": "Power production L3"
       },
       "voltage_sags_l1": {
         "name": "Voltage sags L1"
@@ -130,10 +130,10 @@
         "name": "Telegram attempts"
       },
       "mbus_gas": {
-        "name": "Gas consumption"
+        "name": "Gas delivered"
       },
       "mbus_water": {
-        "name": "Water consumption"
+        "name": "Water delivered"
       },
       "mbus_energy": {
         "name": "Energy delivered"

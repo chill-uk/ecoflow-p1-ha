@@ -37,7 +37,7 @@ Home Assistant even if a field is temporarily absent. A sensor remains
 unavailable until its corresponding OBIS field is present and valid:
 
 - Imported and exported energy for tariff 1 and tariff 2
-- Current imported and exported power, reported in watts
+- Current power consumption and production, reported in watts
 - Active tariff
 - Voltage, current, imported power and exported power per phase
 - Power failure, long power failure, voltage sag and voltage swell counters
