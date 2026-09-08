@@ -1,0 +1,17 @@
+"""Constants for the EcoFlow P1 Energy Tracker integration."""
+
+from typing import Final
+
+from homeassistant.const import Platform
+
+DOMAIN: Final = "ecoflow_p1"
+
+CONF_POLL_INTERVAL: Final = "poll_interval"
+DEFAULT_POLL_INTERVAL: Final = 5
+MIN_POLL_INTERVAL: Final = 5
+MAX_POLL_INTERVAL: Final = 300
+
+API_PATH: Final = "/getdebugdata"
+REQUEST_TIMEOUT: Final = 4
+
+PLATFORMS: Final = [Platform.SENSOR]

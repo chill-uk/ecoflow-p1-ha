@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set integration version
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("custom_components/ecoflow_p1/manifest.json")
+          manifest = json.loads(path.read_text())
+          manifest["version"] = os.environ["VERSION"].removeprefix("v")
+          path.write_text(json.dumps(manifest, indent=2) + "\n")
+          PY
+      - name: Build integration ZIP
+        run: |
+          cd custom_components/ecoflow_p1
+          zip -r ../../ecoflow_p1.zip .
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ecoflow_p1.zip
+          generate_release_notes: true
+

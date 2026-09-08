@@ -1,0 +1,8 @@
+{
+  "name": "EcoFlow P1 Energy Tracker",
+  "render_readme": true,
+  "homeassistant": "2026.4.0",
+  "zip_release": true,
+  "filename": "ecoflow_p1.zip"
+}
+

@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to EcoFlow P1 Energy Tracker",
+        "description": "Enter the local hostname or IP address of your EcoFlow P1.",
+        "data": {
+          "host": "Hostname or IP address"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_host": "Enter a valid hostname or IP address on port 80",
+      "invalid_response": "The device did not return a valid DSMR telegram"
+    },
+    "abort": {
+      "already_configured": "This EcoFlow P1 is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EcoFlow P1 options",
+        "description": "Choose how often Home Assistant requests the local DSMR telegram.",
+        "data": {
+          "poll_interval": "Polling interval (seconds)"
+        }
+      }
+    }
+  }
+}
+
