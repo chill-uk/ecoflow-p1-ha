@@ -1,72 +1,37 @@
 # EcoFlow P1 Energy Tracker for Home Assistant
 
-A local-only Home Assistant custom integration for the EcoFlow P1 Energy
-Tracker. It reads the raw DSMR telegram from the dongle's local
-HTTP endpoint:
+[![GitHub release](https://img.shields.io/github/release/chill-uk/ecoflow-p1-ha?include_prereleases=&sort=semver&color=blue)](https://github.com/chill-uk/ecoflow-p1-ha/releases/)
+[![issues - ecoflow-p1-ha](https://img.shields.io/github/issues/chill-uk/ecoflow-p1-ha)](https://github.com/chill-uk/ecoflow-p1-ha/issues)
+[![GH-code-size](https://img.shields.io/github/languages/code-size/chill-uk/ecoflow-p1-ha?color=red)](https://github.com/chill-uk/ecoflow-p1-ha)
+[![GH-last-commit](https://img.shields.io/github/last-commit/chill-uk/ecoflow-p1-ha?style=flat-square)](https://github.com/chill-uk/ecoflow-p1-ha/commits/main)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Validation](https://github.com/chill-uk/ecoflow-p1-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/chill-uk/ecoflow-p1-ha/actions/workflows/validate.yml)
+![GitHub Downloads](https://img.shields.io/github/downloads/chill-uk/ecoflow-p1-ha/total)
 
-```text
-GET http://<device-ip>/getdebugdata
-```
+A local-only Home Assistant custom integration for the EcoFlow P1 Energy Tracker. It reads the raw DSMR telegram from the dongle's local
+HTTP endpoint.
 
 It does **not** use the EcoFlow cloud API.
 
-## Features
+# Installation
 
-- UI configuration by hostname or IP address
-- Device identity based on the P1 dongle serial number (`SN`)
-- One coordinated HTTP request per update
-- Configurable 5–300 second polling interval (5 seconds by default)
-- DSMR parsing by OBIS identifier, independent of line order
-- Single-phase and three-phase electricity measurements
-- Dynamic M-Bus discovery with no fixed channel-number limit
-- Gas, water and energy M-Bus readings classified by device type and unit
-- DSMR version, meter manufacturer/model and decoded meter serials
-- Dongle firmware and serial in Home Assistant device information
-- Separate Home Assistant devices for the dongle, electricity meter and each
-  M-Bus meter
-- Translatable entity names with a quieter default entity selection
-- Revalidated, editable device address in the integration options
-- Diagnostic counters for timeouts, CRC errors and total telegram attempts; disabled
-  by default
-- Automated parser, API and config-flow tests
+### HACS installation
 
-## Sensors
+The quickest way to install this integration is via [HACS](https://github.com/hacs/integration) by clicking the button below:
 
-All supported electricity sensors are registered so they can be enabled from
-Home Assistant even if a field is temporarily absent. A sensor remains
-unavailable until its corresponding OBIS field is present and valid:
+[![Add to HACS via My Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=chill-uk&repository=ecoflow-p1-ha&category=integration)
 
-- Imported and exported energy for tariff 1 and tariff 2
-- Current power consumption and production, reported in watts
-- Active tariff
-- Voltage, current, imported power and exported power per phase
-- Power failure, long power failure, voltage sag and voltage swell counters
-- Gas, water or energy consumption from discovered M-Bus meters
-- EcoFlow telegram counters as disabled diagnostic sensors
+1. Click the button above to add this repository to HACS as a custom integration.
+2. Install `EcoFlow P1 Energy Tracker` from HACS.
+3. Restart Home Assistant.
+4. In Home Assistant, go to `Settings -> Devices & Services`.
+5. Add the `EcoFlow P1 Energy Tracker` integration.
 
-Aggregate and L1 measurement entities are enabled by default. L2 and L3
-voltage, current and power entities are registered but disabled by default, as
-are the diagnostic counters.
+### Manual installation
 
-Malformed optional fields are ignored without discarding the rest of the
-telegram.
-
-## Installation
-
-### HACS custom repository
-
-1. Open HACS in Home Assistant.
-2. Add this repository as a custom repository with category **Integration**.
-3. Install **EcoFlow P1 Energy Tracker**.
-4. Restart Home Assistant.
-5. Go to **Settings → Devices & services → Add integration** and search for
-   **EcoFlow P1 Energy Tracker**.
-6. Enter only the dongle's hostname or IP address. Port 80 is used automatically.
-
-### Manual
-
-Copy `custom_components/ecoflow_p1` into the `custom_components` directory in
-your Home Assistant configuration, then restart Home Assistant.
+1. Copy `custom_components/ecoflow_p1` into your Home Assistant config directory.
+2. Restart Home Assistant.
+3. In Home Assistant, add the `EcoFlow P1 Energy Tracker` integration from `Settings -> Devices & Services`.
 
 ## Polling interval
 
@@ -74,12 +39,6 @@ Open the integration's **Configure** dialog to change its hostname/IP address or
 select an interval from 5 to 300 seconds. A changed address is probed before it
 is saved; serial-backed entries cannot be pointed at a different P1 dongle.
 Home Assistant's documented minimum polling interval is 5 seconds.
-
-## Known MVP limitations
-
-- No downloadable Home Assistant diagnostics yet
-- DSMR CRC text is not independently recalculated; the P1's own
-  `crc_error_times` counter is exposed for diagnostics
 
 ## License
 
