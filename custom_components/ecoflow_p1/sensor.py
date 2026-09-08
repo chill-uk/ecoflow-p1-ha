@@ -14,6 +14,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import (
     EntityCategory,
+    Platform,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
     UnitOfEnergy,
@@ -22,6 +23,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -122,7 +124,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowP1SensorDescription, ...] = (
             device_class=SensorDeviceClass.CURRENT,
             native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
             state_class=SensorStateClass.MEASUREMENT,
-            entity_registry_enabled_default=False,
+            entity_registry_enabled_default=phase == 1,
         )
         for phase, code in ((1, 31), (2, 51), (3, 71))
     ),
@@ -137,12 +139,12 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowP1SensorDescription, ...] = (
             _power(
                 f"power_import_l{phase}",
                 f"1-0:{import_code}.7.0",
-                enabled=False,
+                enabled=phase == 1,
             ),
             _power(
                 f"power_export_l{phase}",
                 f"1-0:{export_code}.7.0",
-                enabled=False,
+                enabled=phase == 1,
             ),
         )
     ),
@@ -181,6 +183,7 @@ async def async_setup_entry(
         config_entry_id=entry.entry_id,
         **_dongle_device_info(coordinator, base_id),
     )
+    _migrate_legacy_mbus_entities(hass, base_id, coordinator.data)
     known: set[str] = set()
 
     @callback
@@ -201,12 +204,8 @@ async def async_setup_entry(
 
 
 def _available_descriptions(data: EcoFlowP1Data) -> list[EcoFlowP1SensorDescription]:
-    """Return descriptions that have appeared in the response."""
-    descriptions = [
-        description
-        for description in SENSOR_DESCRIPTIONS
-        if _value_for_description(data, description) is not None
-    ]
+    """Return all DSMR descriptions plus discovered M-Bus readings."""
+    descriptions = list(SENSOR_DESCRIPTIONS)
 
     for channel in data.telegram.meter_info.mbus_channels.values():
         kind = classify_mbus_channel(channel)
@@ -214,6 +213,36 @@ def _available_descriptions(data: EcoFlowP1Data) -> list[EcoFlowP1SensorDescript
             continue
         descriptions.append(_mbus_description(channel, kind))
     return descriptions
+
+
+def _migrate_legacy_mbus_entities(
+    hass: HomeAssistant, base_id: str, data: EcoFlowP1Data
+) -> None:
+    """Move legacy gas entities to M-Bus IDs or remove duplicate orphans."""
+    registry = er.async_get(hass)
+    channels = data.telegram.meter_info.mbus_channels
+
+    # Versions before 0.2.0 only supported gas on channels 1 through 4 and used
+    # gas_consumption_<channel> as the unique-ID suffix.
+    for channel_number in range(1, 5):
+        old_unique_id = f"{base_id}_gas_consumption_{channel_number}"
+        old_entity_id = registry.async_get_entity_id(
+            Platform.SENSOR, DOMAIN, old_unique_id
+        )
+        if old_entity_id is None:
+            continue
+
+        channel = channels.get(channel_number)
+        kind = classify_mbus_channel(channel) if channel is not None else None
+        if channel is None or channel.delivered is None or kind is None:
+            registry.async_remove(old_entity_id)
+            continue
+
+        new_unique_id = f"{base_id}_mbus_{kind}_{channel_number}"
+        if registry.async_get_entity_id(Platform.SENSOR, DOMAIN, new_unique_id):
+            registry.async_remove(old_entity_id)
+        else:
+            registry.async_update_entity(old_entity_id, new_unique_id=new_unique_id)
 
 
 def _mbus_description(
