@@ -6,7 +6,11 @@ import ipaddress
 from urllib.parse import urlsplit
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlowWithReload,
+)
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -68,28 +72,72 @@ class EcoFlowP1ConfigFlow(ConfigFlow, domain=DOMAIN):
         return EcoFlowP1OptionsFlow()
 
 
-class EcoFlowP1OptionsFlow(OptionsFlow):
+class EcoFlowP1OptionsFlow(OptionsFlowWithReload):
     """Handle EcoFlow P1 options."""
 
     async def async_step_init(
-        self, user_input: dict[str, int] | None = None
+        self, user_input: dict[str, str | int] | None = None
     ) -> ConfigFlowResult:
-        """Configure the polling interval."""
+        """Configure and revalidate the device address and polling interval."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            try:
+                host = _normalize_host(str(user_input[CONF_HOST]))
+            except ValueError:
+                errors["base"] = "invalid_host"
+            else:
+                if _host_is_configured(self, host):
+                    errors["base"] = "already_configured"
+                else:
+                    api = EcoFlowP1Api(async_get_clientsession(self.hass), host)
+                    try:
+                        data = await api.async_get_data()
+                    except EcoFlowP1ConnectionError:
+                        errors["base"] = "cannot_connect"
+                    except EcoFlowP1ResponseError:
+                        errors["base"] = "invalid_response"
+                    else:
+                        expected_id = self.config_entry.unique_id
+                        if (
+                            expected_id
+                            and not expected_id.startswith("host:")
+                            and data.serial != expected_id
+                        ):
+                            errors["base"] = "wrong_device"
+                        else:
+                            return self.async_create_entry(
+                                title="",
+                                data={
+                                    CONF_HOST: host,
+                                    CONF_POLL_INTERVAL: user_input[CONF_POLL_INTERVAL],
+                                },
+                            )
 
-        current = self.config_entry.options.get(
+        current_interval = self.config_entry.options.get(
             CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL
+        )
+        current_host = self.config_entry.options.get(
+            CONF_HOST, self.config_entry.data[CONF_HOST]
         )
         schema = vol.Schema(
             {
-                vol.Required(CONF_POLL_INTERVAL, default=current): vol.All(
+                vol.Required(CONF_HOST, default=current_host): str,
+                vol.Required(CONF_POLL_INTERVAL, default=current_interval): vol.All(
                     vol.Coerce(int),
                     vol.Range(min=MIN_POLL_INTERVAL, max=MAX_POLL_INTERVAL),
-                )
+                ),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+
+def _host_is_configured(flow: EcoFlowP1OptionsFlow, host: str) -> bool:
+    """Return whether another config entry already uses this address."""
+    return any(
+        entry.entry_id != flow.config_entry.entry_id
+        and entry.options.get(CONF_HOST, entry.data.get(CONF_HOST)) == host
+        for entry in flow.hass.config_entries.async_entries(DOMAIN)
+    )
 
 
 def _normalize_host(value: str) -> str:
@@ -97,6 +145,14 @@ def _normalize_host(value: str) -> str:
     candidate = value.strip()
     if not candidate:
         raise ValueError("Host is empty")
+
+    if "://" not in candidate and candidate.count(":") >= 2:
+        try:
+            address = ipaddress.ip_address(candidate.strip("[]"))
+        except ValueError:
+            pass
+        else:
+            return f"[{address.compressed}]"
 
     parsed = urlsplit(candidate if "://" in candidate else f"//{candidate}")
     if parsed.scheme and parsed.scheme.casefold() != "http":

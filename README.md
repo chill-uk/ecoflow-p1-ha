@@ -10,7 +10,7 @@ GET http://<device-ip>/getdebugdata
 
 It does **not** use the EcoFlow cloud API.
 
-## MVP features
+## Features
 
 - UI configuration by hostname or IP address
 - Device identity based on the P1 dongle serial number (`SN`)
@@ -18,11 +18,17 @@ It does **not** use the EcoFlow cloud API.
 - Configurable 5–300 second polling interval (5 seconds by default)
 - DSMR parsing by OBIS identifier, independent of line order
 - Single-phase and three-phase electricity measurements
-- Dynamically discovered gas readings on M-Bus channels 1–4
+- Dynamic M-Bus discovery with no fixed channel-number limit
+- Gas, water and energy M-Bus readings classified by device type and unit
+- DSMR version, meter manufacturer/model and decoded meter serials
 - Dongle firmware and serial in Home Assistant device information
-- Electricity and M-Bus meter serials as sensor attributes
+- Separate Home Assistant devices for the dongle, electricity meter and each
+  M-Bus meter
+- Translatable entity names with a quieter default entity selection
+- Revalidated, editable device address in the integration options
 - Diagnostic counters for timeouts, CRC errors and total telegram attempts; disabled
   by default
+- Automated parser, API and config-flow tests
 
 ## Sensors
 
@@ -33,7 +39,7 @@ Sensors are created when their corresponding OBIS field is present and valid:
 - Active tariff
 - Voltage, current, imported power and exported power per phase
 - Power failure, long power failure, voltage sag and voltage swell counters
-- Gas consumption when present
+- Gas, water or energy consumption from discovered M-Bus meters
 - EcoFlow telegram counters as disabled diagnostic sensors
 
 Malformed optional fields are ignored without discarding the rest of the
@@ -58,8 +64,10 @@ your Home Assistant configuration, then restart Home Assistant.
 
 ## Polling interval
 
-Open the integration's **Configure** dialog to select an interval from 5 to 300
-seconds. Home Assistant's documented minimum polling interval is 5 seconds.
+Open the integration's **Configure** dialog to change its hostname/IP address or
+select an interval from 5 to 300 seconds. A changed address is probed before it
+is saved; serial-backed entries cannot be pointed at a different P1 dongle.
+Home Assistant's documented minimum polling interval is 5 seconds.
 
 ## Known MVP limitations
 
