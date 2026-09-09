@@ -67,6 +67,25 @@ def _install_home_assistant_stubs() -> None:
     aiohttp_client = ModuleType("homeassistant.helpers.aiohttp_client")
     aiohttp_client.async_get_clientsession = lambda _hass: object()
     sys.modules[aiohttp_client.__name__] = aiohttp_client
+    selector = ModuleType("homeassistant.helpers.selector")
+
+    class _Selector:
+        def __init__(self, config=None):
+            self.config = config
+
+    class _SelectSelectorConfig:
+        def __init__(self, **kwargs):
+            self.options = kwargs
+
+    class _SelectSelectorMode:
+        DROPDOWN = "dropdown"
+
+    selector.BooleanSelector = _Selector
+    selector.SelectSelector = _Selector
+    selector.SelectSelectorConfig = _SelectSelectorConfig
+    selector.SelectSelectorMode = _SelectSelectorMode
+    sys.modules[selector.__name__] = selector
+    helpers.selector = selector
 
 
 _install_home_assistant_stubs()
@@ -81,6 +100,11 @@ constants.DEFAULT_POLL_INTERVAL = 5
 constants.DOMAIN = "ecoflow_p1"
 constants.MAX_POLL_INTERVAL = 300
 constants.MIN_POLL_INTERVAL = 5
+constants.CONF_PHASE_MODE = "phase_mode"
+constants.CONF_TELEGRAM_DEBUG = "telegram_debug"
+constants.DEFAULT_PHASE_MODE = "single"
+constants.PHASE_MODE_SINGLE = "single"
+constants.PHASE_MODE_THREE = "three"
 config_flow = load_module("custom_components.ecoflow_p1.config_flow")
 
 
@@ -143,9 +167,24 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
         )
         flow.hass = SimpleNamespace(config_entries=FakeConfigEntries())
 
-        result = await flow.async_step_init({"host": "new.local", "poll_interval": 10})
+        result = await flow.async_step_init(
+            {
+                "host": "new.local",
+                "poll_interval": 10,
+                "phase_mode": "three",
+                "telegram_debug": True,
+            }
+        )
 
-        self.assertEqual(result["data"], {"host": "new.local", "poll_interval": 10})
+        self.assertEqual(
+            result["data"],
+            {
+                "host": "new.local",
+                "poll_interval": 10,
+                "phase_mode": "three",
+                "telegram_debug": True,
+            },
+        )
 
     async def test_options_reject_a_different_physical_device(self) -> None:
         """Do not silently repoint a serial-backed entry to another dongle."""
@@ -159,7 +198,14 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
         )
         flow.hass = SimpleNamespace(config_entries=FakeConfigEntries())
 
-        result = await flow.async_step_init({"host": "new.local", "poll_interval": 5})
+        result = await flow.async_step_init(
+            {
+                "host": "new.local",
+                "poll_interval": 5,
+                "phase_mode": "single",
+                "telegram_debug": False,
+            }
+        )
 
         self.assertEqual(result["errors"], {"base": "wrong_device"})
 

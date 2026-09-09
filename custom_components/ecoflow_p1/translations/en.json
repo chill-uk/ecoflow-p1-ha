@@ -22,10 +22,15 @@
     "step": {
       "init": {
         "title": "EcoFlow P1 options",
-        "description": "Change the local address or how often Home Assistant requests the DSMR telegram.",
+        "description": "Change the local address, polling interval, meter phases, or telegram debugging. Debug mode disables the 15-second grace period and logs redacted telegrams that fail validation.",
         "data": {
           "host": "Hostname or IP address",
-          "poll_interval": "Polling interval (seconds)"
+          "poll_interval": "Polling interval (seconds)",
+          "phase_mode": "Meter phases",
+          "telegram_debug": "Telegram debug mode"
+        },
+        "data_description": {
+          "telegram_debug": "Immediately expose missing values and log redacted telegrams with CRC or required-field errors."
         }
       }
     },
@@ -35,6 +40,14 @@
       "invalid_host": "Enter a valid hostname or IP address on port 80",
       "invalid_response": "The device did not return a valid DSMR telegram",
       "wrong_device": "The device at this address has a different EcoFlow P1 serial number"
+    }
+  },
+  "selector": {
+    "phase_mode": {
+      "options": {
+        "single": "Single phase",
+        "three": "Three phase"
+      }
     }
   },
   "entity": {

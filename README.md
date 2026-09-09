@@ -35,10 +35,22 @@ The quickest way to install this integration is via [HACS](https://github.com/ha
 
 ## Polling interval
 
-Open the integration's **Configure** dialog to change its hostname/IP address or
-select an interval from 5 to 300 seconds. A changed address is probed before it
-is saved; serial-backed entries cannot be pointed at a different P1 dongle.
-Home Assistant's documented minimum polling interval is 5 seconds.
+Open the integration's **Configure** dialog to:
+
+- change its hostname or IP address;
+- select a polling interval from 5 to 300 seconds;
+- select single-phase or three-phase validation;
+- temporarily enable telegram debug mode.
+
+A changed address is probed before it is saved; serial-backed entries cannot be
+pointed at a different P1 dongle. Home Assistant's documented minimum polling
+interval is 5 seconds.
+
+Telegram debug mode disables the 15-second value-retention grace period. A
+telegram with a missing, empty, malformed, or incorrectly unit-labelled required
+electricity field is logged together with its CRC result and raw telegram.
+Electricity and M-Bus equipment identifiers are redacted from that log. Disable
+debug mode after collecting the information needed for troubleshooting.
 
 ## License
 

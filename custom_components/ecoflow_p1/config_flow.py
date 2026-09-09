@@ -13,6 +13,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import (
@@ -21,11 +22,16 @@ from .api import (
     EcoFlowP1ResponseError,
 )
 from .const import (
+    CONF_PHASE_MODE,
     CONF_POLL_INTERVAL,
+    CONF_TELEGRAM_DEBUG,
+    DEFAULT_PHASE_MODE,
     DEFAULT_POLL_INTERVAL,
     DOMAIN,
     MAX_POLL_INTERVAL,
     MIN_POLL_INTERVAL,
+    PHASE_MODE_SINGLE,
+    PHASE_MODE_THREE,
 )
 
 
@@ -76,7 +82,7 @@ class EcoFlowP1OptionsFlow(OptionsFlowWithReload):
     """Handle EcoFlow P1 options."""
 
     async def async_step_init(
-        self, user_input: dict[str, str | int] | None = None
+        self, user_input: dict[str, str | int | bool] | None = None
     ) -> ConfigFlowResult:
         """Configure and revalidate the device address and polling interval."""
         errors: dict[str, str] = {}
@@ -110,6 +116,10 @@ class EcoFlowP1OptionsFlow(OptionsFlowWithReload):
                                 data={
                                     CONF_HOST: host,
                                     CONF_POLL_INTERVAL: user_input[CONF_POLL_INTERVAL],
+                                    CONF_PHASE_MODE: user_input[CONF_PHASE_MODE],
+                                    CONF_TELEGRAM_DEBUG: user_input[
+                                        CONF_TELEGRAM_DEBUG
+                                    ],
                                 },
                             )
 
@@ -119,6 +129,10 @@ class EcoFlowP1OptionsFlow(OptionsFlowWithReload):
         current_host = self.config_entry.options.get(
             CONF_HOST, self.config_entry.data[CONF_HOST]
         )
+        current_phase_mode = self.config_entry.options.get(
+            CONF_PHASE_MODE, DEFAULT_PHASE_MODE
+        )
+        current_debug = self.config_entry.options.get(CONF_TELEGRAM_DEBUG, False)
         schema = vol.Schema(
             {
                 vol.Required(CONF_HOST, default=current_host): str,
@@ -126,6 +140,18 @@ class EcoFlowP1OptionsFlow(OptionsFlowWithReload):
                     vol.Coerce(int),
                     vol.Range(min=MIN_POLL_INTERVAL, max=MAX_POLL_INTERVAL),
                 ),
+                vol.Required(
+                    CONF_PHASE_MODE, default=current_phase_mode
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[PHASE_MODE_SINGLE, PHASE_MODE_THREE],
+                        translation_key="phase_mode",
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required(
+                    CONF_TELEGRAM_DEBUG, default=current_debug
+                ): selector.BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)

@@ -110,6 +110,19 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(api_module.EcoFlowP1ConnectionError):
             await client.async_get_data()
 
+    async def test_rejects_a_crc_mismatch(self) -> None:
+        """Do not publish a telegram whose contents fail their reported CRC."""
+        invalid = TELEGRAM.replace("00.123*kW", "00.124*kW")
+        client = api_module.EcoFlowP1Api(
+            FakeSession(FakeResponse({"debugdata": invalid})), "p1.local"
+        )
+
+        with self.assertRaises(api_module.EcoFlowP1TelegramError) as raised:
+            await client.async_get_data()
+
+        self.assertEqual(raised.exception.crc.reported, "6A72")
+        self.assertFalse(raised.exception.crc.valid)
+
 
 if __name__ == "__main__":
     unittest.main()

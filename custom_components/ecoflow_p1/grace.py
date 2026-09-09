@@ -55,10 +55,22 @@ class EcoFlowP1DataGrace:
         self._mbus = ExpiringMap[int, MBusChannel](grace_seconds)
         self._metadata = ExpiringMap[str, object](grace_seconds)
 
-    def update(self, incoming: EcoFlowP1Data, now: float) -> EcoFlowP1Data:
+    def update(
+        self,
+        incoming: EcoFlowP1Data,
+        now: float,
+        invalid_obis: frozenset[str] = frozenset(),
+    ) -> EcoFlowP1Data:
         """Return a snapshot supplemented with values seen within the grace period."""
         info = incoming.telegram.meter_info
-        obis = self._obis.update(incoming.telegram.obis, now)
+        obis = self._obis.update(
+            {
+                identifier: value
+                for identifier, value in incoming.telegram.obis.items()
+                if identifier not in invalid_obis
+            },
+            now,
+        )
         mbus_channels = self._mbus.update(
             {
                 channel: value
@@ -109,4 +121,5 @@ class EcoFlowP1DataGrace:
             timeout_times=cast(int | None, metadata.get("timeout_times")),
             crc_error_times=cast(int | None, metadata.get("crc_error_times")),
             total_times=cast(int | None, metadata.get("total_times")),
+            raw_telegram=incoming.raw_telegram,
         )

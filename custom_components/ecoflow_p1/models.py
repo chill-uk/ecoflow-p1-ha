@@ -87,6 +87,7 @@ class EcoFlowP1Data:
     timeout_times: int | None
     crc_error_times: int | None
     total_times: int | None
+    raw_telegram: str = ""
 
 
 def split_number_and_unit(value: str) -> tuple[Decimal, str | None] | None:
