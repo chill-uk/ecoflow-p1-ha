@@ -94,9 +94,7 @@ class EcoFlowP1DataGrace:
             electricity_equipment_id=cast(
                 str | None, metadata.get("electricity_equipment_id")
             ),
-            electricity_serial=cast(
-                str | None, metadata.get("electricity_serial")
-            ),
+            electricity_serial=cast(str | None, metadata.get("electricity_serial")),
             mbus_channels=mbus_channels,
         )
         telegram = ParsedTelegram(
