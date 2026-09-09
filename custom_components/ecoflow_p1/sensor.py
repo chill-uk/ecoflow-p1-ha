@@ -231,7 +231,7 @@ def _available_descriptions(data: EcoFlowP1Data) -> list[EcoFlowP1SensorDescript
 def _migrate_legacy_mbus_entities(
     hass: HomeAssistant, base_id: str, data: EcoFlowP1Data
 ) -> None:
-    """Move legacy gas entities to M-Bus IDs or remove duplicate orphans."""
+    """Move legacy gas entities only when their replacement is known."""
     registry = er.async_get(hass)
     channels = data.telegram.meter_info.mbus_channels
 
@@ -245,17 +245,28 @@ def _migrate_legacy_mbus_entities(
         if old_entity_id is None:
             continue
 
-        channel = channels.get(channel_number)
-        kind = classify_mbus_channel(channel) if channel is not None else None
-        if channel is None or channel.delivered is None or kind is None:
+        replacement_exists = any(
+            registry.async_get_entity_id(
+                Platform.SENSOR,
+                DOMAIN,
+                f"{base_id}_mbus_{kind}_{channel_number}",
+            )
+            is not None
+            for kind in ("gas", "water", "energy")
+        )
+        if replacement_exists:
             registry.async_remove(old_entity_id)
             continue
 
+        channel = channels.get(channel_number)
+        kind = classify_mbus_channel(channel) if channel is not None else None
+        if channel is None or channel.delivered is None or kind is None:
+            # An M-Bus reading can be absent from an otherwise valid telegram.
+            # Do not delete registry entries based on one transient snapshot.
+            continue
+
         new_unique_id = f"{base_id}_mbus_{kind}_{channel_number}"
-        if registry.async_get_entity_id(Platform.SENSOR, DOMAIN, new_unique_id):
-            registry.async_remove(old_entity_id)
-        else:
-            registry.async_update_entity(old_entity_id, new_unique_id=new_unique_id)
+        registry.async_update_entity(old_entity_id, new_unique_id=new_unique_id)
 
 
 def _migrate_legacy_power_units(hass: HomeAssistant, base_id: str) -> None:

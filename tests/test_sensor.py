@@ -281,10 +281,7 @@ class SensorTests(unittest.TestCase):
         self.assertEqual(registry.removed, [])
 
     def test_removes_legacy_entity_when_replacement_exists(self) -> None:
-        """Remove only the duplicate orphan when both IDs are registered."""
-        channel = models.MBusChannel(
-            1, device_type=3, delivered=Decimal("12.3"), unit="m3"
-        )
+        """Remove a duplicate even when the current telegram omits its channel."""
         registry = FakeRegistry(
             {
                 "P1-123_gas_consumption_1": "sensor.old_gas",
@@ -294,11 +291,29 @@ class SensorTests(unittest.TestCase):
         sensor.er.async_get = lambda _hass: registry
 
         sensor._migrate_legacy_mbus_entities(
-            None, "P1-123", _data_with_channel(channel)
+            None,
+            "P1-123",
+            _data_with_channel(models.MBusChannel(5)),
         )
 
         self.assertEqual(registry.updated, [])
         self.assertEqual(registry.removed, ["sensor.old_gas"])
+
+    def test_keeps_legacy_entity_when_mbus_reading_is_temporarily_absent(self) -> None:
+        """Do not erase entity identity based on one incomplete telegram."""
+        snapshots = (
+            _data_with_channel(models.MBusChannel(5)),
+            _data_with_channel(models.MBusChannel(1, device_type=3)),
+        )
+        for data in snapshots:
+            with self.subTest(channels=data.telegram.meter_info.mbus_channels):
+                registry = FakeRegistry({"P1-123_gas_consumption_1": "sensor.old_gas"})
+                sensor.er.async_get = lambda _hass, current=registry: current
+
+                sensor._migrate_legacy_mbus_entities(None, "P1-123", data)
+
+                self.assertEqual(registry.updated, [])
+                self.assertEqual(registry.removed, [])
 
 
 if __name__ == "__main__":
