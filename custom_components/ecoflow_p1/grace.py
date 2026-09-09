@@ -17,20 +17,20 @@ def is_within_grace(
     return last_success_at is not None and now - last_success_at < grace_seconds
 
 
-class ExpiringMap[_KeyT, _ValueT]:
+class ExpiringMap[KeyT, ValueT]:
     """Keep recently seen values while expiring genuinely stale entries."""
 
     def __init__(self, grace_seconds: float) -> None:
         """Initialize the cache."""
         self._grace_seconds = grace_seconds
-        self._data: dict[_KeyT, _ValueT] = {}
-        self._last_seen: dict[_KeyT, float] = {}
+        self._data: dict[KeyT, ValueT] = {}
+        self._last_seen: dict[KeyT, float] = {}
 
     def update(
         self,
-        incoming: Mapping[_KeyT, _ValueT],
+        incoming: Mapping[KeyT, ValueT],
         now: float,
-    ) -> dict[_KeyT, _ValueT]:
+    ) -> dict[KeyT, ValueT]:
         """Merge current values and expire entries missing beyond the grace period."""
         for key, value in incoming.items():
             self._data[key] = value
