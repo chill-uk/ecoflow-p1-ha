@@ -54,11 +54,14 @@ class EcoFlowP1Coordinator(DataUpdateCoordinator[EcoFlowP1Data]):
         try:
             incoming = await self.api.async_get_data()
         except EcoFlowP1Error as err:
-            if is_within_grace(
-                self._last_success_at,
-                loop.time(),
-                TRANSIENT_FAILURE_GRACE_SECONDS,
-            ) and self.data is not None:
+            if (
+                is_within_grace(
+                    self._last_success_at,
+                    loop.time(),
+                    TRANSIENT_FAILURE_GRACE_SECONDS,
+                )
+                and self.data is not None
+            ):
                 _LOGGER.debug(
                     "Retaining the last EcoFlow P1 data during a transient error: %s",
                     err,
