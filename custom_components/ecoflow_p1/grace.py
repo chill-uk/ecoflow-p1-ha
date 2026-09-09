@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Generic, TypeVar, cast
+from typing import cast
 
 from .models import EcoFlowP1Data, MBusChannel, MeterInfo, ObisValue, ParsedTelegram
-
-_KeyT = TypeVar("_KeyT")
-_ValueT = TypeVar("_ValueT")
 
 
 def is_within_grace(
@@ -20,7 +17,7 @@ def is_within_grace(
     return last_success_at is not None and now - last_success_at < grace_seconds
 
 
-class ExpiringMap(Generic[_KeyT, _ValueT]):
+class ExpiringMap[_KeyT, _ValueT]:
     """Keep recently seen values while expiring genuinely stale entries."""
 
     def __init__(self, grace_seconds: float) -> None:
