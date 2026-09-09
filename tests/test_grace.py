@@ -59,9 +59,7 @@ class EcoFlowP1DataGraceTests(unittest.TestCase):
         result = cache.update(_data(power="00.600*kW"), 105)
 
         self.assertEqual(result.telegram.decimal("0-0:96.14.0"), Decimal(2))
-        self.assertEqual(
-            result.telegram.decimal("1-0:1.7.0", "kW"), Decimal("0.600")
-        )
+        self.assertEqual(result.telegram.decimal("1-0:1.7.0", "kW"), Decimal("0.600"))
 
     def test_expires_value_after_sustained_omission(self) -> None:
         cache = grace.EcoFlowP1DataGrace(15)
