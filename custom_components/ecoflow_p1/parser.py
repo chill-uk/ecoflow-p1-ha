@@ -78,9 +78,7 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
             parsed[match.group("identifier")] = ObisValue(groups)
 
     manufacturer, model = _parse_header(lines[0])
-    equipment_id = _first_plain_value(
-        parsed, "0-0:96.1.1", "0-0:96.1.0"
-    )
+    equipment_id = _first_plain_value(parsed, "0-0:96.1.1", "0-0:96.1.0")
 
     return ParsedTelegram(
         header=lines[0],
@@ -128,8 +126,7 @@ def _parse_mbus_channels(values: dict[str, ObisValue]) -> dict[int, MBusChannel]
             values, f"0-{channel}:96.1.0", f"0-{channel}:96.1.1"
         )
         timestamp, delivered, unit = _parse_mbus_reading(
-            values.get(f"0-{channel}:24.2.1")
-            or values.get(f"0-{channel}:24.2.3")
+            values.get(f"0-{channel}:24.2.1") or values.get(f"0-{channel}:24.2.3")
         )
         result[channel] = MBusChannel(
             channel=channel,
@@ -191,9 +188,7 @@ def _plain_value(values: dict[str, ObisValue], identifier: str) -> str | None:
     return item.value or None
 
 
-def _first_plain_value(
-    values: dict[str, ObisValue], *identifiers: str
-) -> str | None:
+def _first_plain_value(values: dict[str, ObisValue], *identifiers: str) -> str | None:
     """Return the first non-empty plain value from equivalent OBIS identifiers."""
     for identifier in identifiers:
         if (value := _plain_value(values, identifier)) is not None:
