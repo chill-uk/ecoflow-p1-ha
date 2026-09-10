@@ -37,9 +37,11 @@ FRAME_1 = """/ISK5\\2M550E-1011\r
 !BDB4\r
 """
 
-FRAME_2 = FRAME_1.replace("260909230749S", "260909230800S").replace(
-    "242.9*V", "242.7*V"
-).replace("!BDB4", "!BC8A")
+FRAME_2 = (
+    FRAME_1.replace("260909230749S", "260909230800S")
+    .replace("242.9*V", "242.7*V")
+    .replace("!BDB4", "!BC8A")
+)
 
 FRAME_3 = (
     FRAME_1.replace("260909230749S", "260909230811S")
@@ -90,9 +92,7 @@ class RequiredObisTests(unittest.TestCase):
 
         self.assertIn("0-0:96.14.0", result.missing)
         self.assertEqual(result.invalid["1-0:1.7.0"], "empty value")
-        self.assertEqual(
-            result.invalid["1-0:32.7.0"], "expected unit V, received A"
-        )
+        self.assertEqual(result.invalid["1-0:32.7.0"], "expected unit V, received A")
 
     def test_three_phase_mode_requires_l2_and_l3(self) -> None:
         result = validation.validate_required_obis(FRAME_1, "three")

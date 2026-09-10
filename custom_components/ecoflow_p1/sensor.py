@@ -201,9 +201,7 @@ async def async_setup_entry(
 
     @callback
     def discover_entities() -> None:
-        descriptions = _available_descriptions(
-            coordinator.data, coordinator.phase_mode
-        )
+        descriptions = _available_descriptions(coordinator.data, coordinator.phase_mode)
         new = [
             description for description in descriptions if description.key not in known
         ]
@@ -224,8 +222,7 @@ def _available_descriptions(
     """Return all DSMR descriptions plus discovered M-Bus readings."""
     descriptions = [
         replace(description, entity_registry_enabled_default=True)
-        if phase_mode == PHASE_MODE_THREE
-        and description.key.endswith(("_l2", "_l3"))
+        if phase_mode == PHASE_MODE_THREE and description.key.endswith(("_l2", "_l3"))
         else description
         for description in SENSOR_DESCRIPTIONS
     ]

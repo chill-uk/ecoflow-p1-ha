@@ -59,9 +59,7 @@ _COMMON_RULES: Final[dict[str, ObisRule]] = {
     "1-0:1.8.2": ObisRule("Imported energy tariff 2", "decimal", "kWh"),
     "1-0:2.8.1": ObisRule("Exported energy tariff 1", "decimal", "kWh"),
     "1-0:2.8.2": ObisRule("Exported energy tariff 2", "decimal", "kWh"),
-    "0-0:96.14.0": ObisRule(
-        "Active tariff", "integer", allowed=frozenset({1, 2})
-    ),
+    "0-0:96.14.0": ObisRule("Active tariff", "integer", allowed=frozenset({1, 2})),
     "1-0:1.7.0": ObisRule("Total imported power", "decimal", "kW"),
     "1-0:2.7.0": ObisRule("Total exported power", "decimal", "kW"),
 }
