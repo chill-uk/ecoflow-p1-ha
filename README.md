@@ -46,11 +46,13 @@ A changed address is probed before it is saved; serial-backed entries cannot be
 pointed at a different P1 dongle. Home Assistant's documented minimum polling
 interval is 5 seconds.
 
-Telegram debug mode disables the 15-second value-retention grace period. A
-telegram with a missing, empty, malformed, or incorrectly unit-labelled required
-electricity field is logged together with its CRC result and raw telegram.
-Electricity and M-Bus equipment identifiers are redacted from that log. Disable
-debug mode after collecting the information needed for troubleshooting.
+Telegram debug mode changes logging only; it does not change entity availability
+or disable the 15-second value-retention grace period. Transient HTTP and response
+failures are logged immediately. A telegram with a missing, empty, malformed, or
+incorrectly unit-labelled required electricity field is logged together with its
+CRC result and raw telegram. Electricity and M-Bus equipment identifiers are
+redacted from that log. Disable debug mode after collecting the information needed
+for troubleshooting.
 
 ## Workflow
 

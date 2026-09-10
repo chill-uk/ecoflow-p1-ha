@@ -107,8 +107,40 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         client = api_module.EcoFlowP1Api(
             FakeSession(FakeResponse(error=ClientError("offline"))), "p1.local"
         )
-        with self.assertRaises(api_module.EcoFlowP1ConnectionError):
+        with self.assertRaises(api_module.EcoFlowP1ConnectionError) as raised:
             await client.async_get_data()
+
+        self.assertEqual(
+            str(raised.exception), "Request to /getdebugdata failed: offline"
+        )
+
+    async def test_timeout_has_a_descriptive_connection_error(self) -> None:
+        """Do not produce a blank coordinator message when a request times out."""
+        client = api_module.EcoFlowP1Api(
+            FakeSession(FakeResponse(error=TimeoutError())), "p1.local"
+        )
+
+        with self.assertRaises(api_module.EcoFlowP1ConnectionError) as raised:
+            await client.async_get_data()
+
+        self.assertEqual(
+            str(raised.exception),
+            "Request to /getdebugdata timed out after 4 seconds",
+        )
+
+    async def test_empty_client_error_uses_exception_name(self) -> None:
+        """Keep an aiohttp failure useful even when its message is empty."""
+        client = api_module.EcoFlowP1Api(
+            FakeSession(FakeResponse(error=ClientError())), "p1.local"
+        )
+
+        with self.assertRaises(api_module.EcoFlowP1ConnectionError) as raised:
+            await client.async_get_data()
+
+        self.assertEqual(
+            str(raised.exception),
+            "Request to /getdebugdata failed: ClientError",
+        )
 
     async def test_rejects_a_crc_mismatch(self) -> None:
         """Do not publish a telegram whose contents fail their reported CRC."""

@@ -58,8 +58,15 @@ class EcoFlowP1Api:
                 ) as response:
                     response.raise_for_status()
                     payload = await response.json(content_type=None)
-        except (TimeoutError, ClientError) as err:
-            raise EcoFlowP1ConnectionError(str(err)) from err
+        except TimeoutError as err:
+            raise EcoFlowP1ConnectionError(
+                f"Request to {API_PATH} timed out after {REQUEST_TIMEOUT} seconds"
+            ) from err
+        except ClientError as err:
+            detail = str(err).strip() or type(err).__name__
+            raise EcoFlowP1ConnectionError(
+                f"Request to {API_PATH} failed: {detail}"
+            ) from err
         except ValueError as err:
             raise EcoFlowP1ResponseError("Device returned invalid JSON") from err
 

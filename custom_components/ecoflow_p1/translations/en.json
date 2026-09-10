@@ -22,7 +22,7 @@
     "step": {
       "init": {
         "title": "EcoFlow P1 options",
-        "description": "Change the local address, polling interval, meter phases, or telegram debugging. Debug mode disables the 15-second grace period and logs redacted telegrams that fail validation.",
+        "description": "Change the local address, polling interval, meter phases, or telegram debugging. Debug mode logs redacted telegrams that fail validation without changing normal entity availability.",
         "data": {
           "host": "Hostname or IP address",
           "poll_interval": "Polling interval (seconds)",
@@ -30,7 +30,7 @@
           "telegram_debug": "Telegram debug mode"
         },
         "data_description": {
-          "telegram_debug": "Immediately expose missing values and log redacted telegrams with CRC or required-field errors."
+          "telegram_debug": "Immediately log transient request failures and redacted telegrams with CRC, parsing, or required-field errors. The 15-second grace period remains active."
         }
       }
     },

@@ -72,9 +72,13 @@ class EcoFlowP1Coordinator(DataUpdateCoordinator[EcoFlowP1Data]):
                     err,
                     redact_equipment_ids(err.telegram),
                 )
+            elif self.telegram_debug:
+                _LOGGER.warning(
+                    "EcoFlow P1 transient update failure during telegram debugging: %s",
+                    err,
+                )
             if (
-                not self.telegram_debug
-                and is_within_grace(
+                is_within_grace(
                     self._last_success_at,
                     loop.time(),
                     TRANSIENT_FAILURE_GRACE_SECONDS,
@@ -105,8 +109,6 @@ class EcoFlowP1Coordinator(DataUpdateCoordinator[EcoFlowP1Data]):
                 crc.valid,
                 redact_equipment_ids(incoming.raw_telegram),
             )
-        if self.telegram_debug:
-            return incoming
         return self._data_grace.update(
             incoming,
             self._last_success_at,
