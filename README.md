@@ -52,6 +52,30 @@ electricity field is logged together with its CRC result and raw telegram.
 Electricity and M-Bus equipment identifiers are redacted from that log. Disable
 debug mode after collecting the information needed for troubleshooting.
 
+## Workflow
+
+1. Poll http://<device-ip>/getdebugdata at the configured interval.
+2. Check the HTTP response and parse its JSON.
+3. Extract the raw DSMR telegram from debugdata.
+4. Validate the telegram’s CRC.
+5. Parse the telegram by OBIS identifier.
+6. Validate the required OBIS fields according to the manually selected single-phase or three-phase mode.
+7. Convert valid measurements into Home Assistant coordinator data.
+8. Update the entities while retaining previous values for optional fields that were not present in this particular telegram.
+9. When a frame is invalid:
+    * Debug mode enabled: immediately log the reason and redacted raw telegram, with no grace period.
+    * Debug mode disabled: preserve the last valid values for up to 15 seconds; if valid data does not return, the affected entities become unavailable.
+
+The log can distinguish between:
+
+* HTTP or JSON failures
+* Missing debugdata
+* Invalid CRC
+* Missing required OBIS fields
+* Empty OBIS values
+* Malformed values
+* Unexpected units
+
 ## License
 
 MIT
