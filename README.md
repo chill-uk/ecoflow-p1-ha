@@ -54,7 +54,7 @@ debug mode after collecting the information needed for troubleshooting.
 
 ## Workflow
 
-1. Poll http://<device-ip>/getdebugdata at the configured interval.
+1. Poll `http://<device-ip>/getdebugdata` at the configured interval.
 2. Check the HTTP response and parse its JSON.
 3. Extract the raw DSMR telegram from debugdata.
 4. Validate the telegram’s CRC.
