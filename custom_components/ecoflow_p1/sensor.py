@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -30,7 +30,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import EcoFlowP1ConfigEntry
-from .const import DOMAIN
+from .const import DOMAIN, PHASE_MODE_THREE
 from .coordinator import EcoFlowP1Coordinator
 from .mbus import classify_mbus_channel, mbus_device_type_name
 from .models import EcoFlowP1Data, MBusChannel
@@ -201,7 +201,7 @@ async def async_setup_entry(
 
     @callback
     def discover_entities() -> None:
-        descriptions = _available_descriptions(coordinator.data)
+        descriptions = _available_descriptions(coordinator.data, coordinator.phase_mode)
         new = [
             description for description in descriptions if description.key not in known
         ]
@@ -216,9 +216,16 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(discover_entities))
 
 
-def _available_descriptions(data: EcoFlowP1Data) -> list[EcoFlowP1SensorDescription]:
+def _available_descriptions(
+    data: EcoFlowP1Data, phase_mode: str | None = None
+) -> list[EcoFlowP1SensorDescription]:
     """Return all DSMR descriptions plus discovered M-Bus readings."""
-    descriptions = list(SENSOR_DESCRIPTIONS)
+    descriptions = [
+        replace(description, entity_registry_enabled_default=True)
+        if phase_mode == PHASE_MODE_THREE and description.key.endswith(("_l2", "_l3"))
+        else description
+        for description in SENSOR_DESCRIPTIONS
+    ]
 
     for channel in data.telegram.meter_info.mbus_channels.values():
         kind = classify_mbus_channel(channel)

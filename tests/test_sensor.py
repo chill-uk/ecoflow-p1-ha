@@ -206,6 +206,19 @@ class SensorTests(unittest.TestCase):
                 self.assertEqual(description.suggested_unit_of_measurement, "W")
                 self.assertEqual(description.value_multiplier, Decimal(1000))
 
+    def test_three_phase_mode_enables_l2_and_l3_by_default(self) -> None:
+        """Use the manual phase choice when registering new entities."""
+        data = _data_with_channel(models.MBusChannel(1, device_type=3, unit="m3"))
+        descriptions = sensor._available_descriptions(data, "three")
+
+        phase_descriptions = [
+            item for item in descriptions if item.key.endswith(("_l2", "_l3"))
+        ]
+        self.assertTrue(phase_descriptions)
+        self.assertTrue(
+            all(item.entity_registry_enabled_default for item in phase_descriptions)
+        )
+
     def test_clears_automatic_legacy_kw_preference(self) -> None:
         """Stop Home Assistant converting native watts back to the former kW unit."""
         power = next(

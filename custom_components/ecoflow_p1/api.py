@@ -11,6 +11,7 @@ from aiohttp import ClientError, ClientSession
 from .const import API_PATH, REQUEST_TIMEOUT
 from .models import EcoFlowP1Data
 from .parser import InvalidTelegramError, parse_telegram
+from .validation import CrcResult, validate_crc
 
 
 class EcoFlowP1Error(Exception):
@@ -23,6 +24,16 @@ class EcoFlowP1ConnectionError(EcoFlowP1Error):
 
 class EcoFlowP1ResponseError(EcoFlowP1Error):
     """The EcoFlow P1 returned an invalid response."""
+
+
+class EcoFlowP1TelegramError(EcoFlowP1ResponseError):
+    """The EcoFlow P1 returned a telegram that failed integrity or parsing."""
+
+    def __init__(self, message: str, telegram: str, crc: CrcResult) -> None:
+        """Initialize an error containing data needed for safe debug logging."""
+        super().__init__(message)
+        self.telegram = telegram
+        self.crc = crc
 
 
 class EcoFlowP1Api:
@@ -47,8 +58,15 @@ class EcoFlowP1Api:
                 ) as response:
                     response.raise_for_status()
                     payload = await response.json(content_type=None)
-        except (TimeoutError, ClientError) as err:
-            raise EcoFlowP1ConnectionError(str(err)) from err
+        except TimeoutError as err:
+            raise EcoFlowP1ConnectionError(
+                f"Request to {API_PATH} timed out after {REQUEST_TIMEOUT} seconds"
+            ) from err
+        except ClientError as err:
+            detail = str(err).strip() or type(err).__name__
+            raise EcoFlowP1ConnectionError(
+                f"Request to {API_PATH} failed: {detail}"
+            ) from err
         except ValueError as err:
             raise EcoFlowP1ResponseError("Device returned invalid JSON") from err
 
@@ -59,10 +77,16 @@ class EcoFlowP1Api:
         if not isinstance(telegram_raw, str):
             raise EcoFlowP1ResponseError("JSON response has no debugdata telegram")
 
+        crc = validate_crc(telegram_raw)
+        if not crc.valid:
+            raise EcoFlowP1TelegramError(
+                crc.error or "Telegram CRC validation failed", telegram_raw, crc
+            )
+
         try:
             telegram = parse_telegram(telegram_raw)
         except InvalidTelegramError as err:
-            raise EcoFlowP1ResponseError(str(err)) from err
+            raise EcoFlowP1TelegramError(str(err), telegram_raw, crc) from err
 
         return EcoFlowP1Data(
             telegram=telegram,
@@ -71,6 +95,7 @@ class EcoFlowP1Api:
             timeout_times=_optional_int(payload.get("timeout_times")),
             crc_error_times=_optional_int(payload.get("crc_error_times")),
             total_times=_optional_int(payload.get("total_times")),
+            raw_telegram=telegram_raw,
         )
 
 

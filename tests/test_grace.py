@@ -79,6 +79,19 @@ class EcoFlowP1DataGraceTests(unittest.TestCase):
 
         self.assertEqual(result.telegram.decimal("0-0:96.14.0"), Decimal(1))
 
+    def test_invalid_value_does_not_replace_last_valid_value(self) -> None:
+        """Treat malformed required values like omissions during the grace period."""
+        cache = grace.EcoFlowP1DataGrace(15)
+        cache.update(_data(tariff="0002"), 100)
+
+        result = cache.update(
+            _data(tariff=""),
+            105,
+            frozenset({"0-0:96.14.0"}),
+        )
+
+        self.assertEqual(result.telegram.decimal("0-0:96.14.0"), Decimal(2))
+
     def test_retains_mbus_reading_during_short_omission(self) -> None:
         cache = grace.EcoFlowP1DataGrace(15)
         cache.update(_data(gas=Decimal("11118.375")), 100)
