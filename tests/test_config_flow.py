@@ -102,6 +102,7 @@ constants.MAX_POLL_INTERVAL = 300
 constants.MIN_POLL_INTERVAL = 5
 constants.CONF_PHASE_MODE = "phase_mode"
 constants.CONF_TELEGRAM_DEBUG = "telegram_debug"
+constants.CONF_ENCRYPTED_DIAGNOSTIC_CAPTURE = "encrypted_diagnostic_capture"
 constants.DEFAULT_PHASE_MODE = "single"
 constants.PHASE_MODE_SINGLE = "single"
 constants.PHASE_MODE_THREE = "three"
@@ -173,6 +174,7 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
                 "poll_interval": 10,
                 "phase_mode": "three",
                 "telegram_debug": True,
+                "encrypted_diagnostic_capture": True,
             }
         )
 
@@ -183,6 +185,7 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
                 "poll_interval": 10,
                 "phase_mode": "three",
                 "telegram_debug": True,
+                "encrypted_diagnostic_capture": True,
             },
         )
 
@@ -204,6 +207,7 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
                 "poll_interval": 5,
                 "phase_mode": "single",
                 "telegram_debug": False,
+                "encrypted_diagnostic_capture": False,
             }
         )
 

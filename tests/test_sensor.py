@@ -219,6 +219,28 @@ class SensorTests(unittest.TestCase):
             all(item.entity_registry_enabled_default for item in phase_descriptions)
         )
 
+    def test_child_devices_use_parent_device_registry_id(self) -> None:
+        """Link child devices with the non-deprecated via_device_id field."""
+        data = _data_with_channel(
+            models.MBusChannel(
+                1, device_type=3, delivered=Decimal("123.456"), unit="m3"
+            )
+        )
+        coordinator = SimpleNamespace(data=data)
+        descriptions = sensor._available_descriptions(data)
+
+        for description in (
+            next(item for item in descriptions if item.key == "power_import"),
+            next(item for item in descriptions if item.key == "mbus_gas_1"),
+        ):
+            with self.subTest(key=description.key):
+                device_info = sensor._device_info(
+                    coordinator, "P1-123", description, "dongle-device-id"
+                )
+
+                self.assertEqual(device_info["via_device_id"], "dongle-device-id")
+                self.assertNotIn("via_device", device_info)
+
     def test_clears_automatic_legacy_kw_preference(self) -> None:
         """Stop Home Assistant converting native watts back to the former kW unit."""
         power = next(

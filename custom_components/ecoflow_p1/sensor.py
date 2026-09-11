@@ -191,7 +191,7 @@ async def async_setup_entry(
     """Set up sensors and discover optional phases or M-Bus meters later."""
     coordinator = entry.runtime_data.coordinator
     base_id = entry.unique_id or entry.entry_id
-    dr.async_get(hass).async_get_or_create(
+    dongle_device = dr.async_get(hass).async_get_or_create(
         config_entry_id=entry.entry_id,
         **_dongle_device_info(coordinator, base_id),
     )
@@ -209,7 +209,8 @@ async def async_setup_entry(
             return
         known.update(description.key for description in new)
         async_add_entities(
-            EcoFlowP1Sensor(coordinator, entry, description) for description in new
+            EcoFlowP1Sensor(coordinator, entry, description, dongle_device.id)
+            for description in new
         )
 
     discover_entities()
@@ -359,13 +360,16 @@ class EcoFlowP1Sensor(CoordinatorEntity[EcoFlowP1Coordinator], SensorEntity):
         coordinator: EcoFlowP1Coordinator,
         entry: EcoFlowP1ConfigEntry,
         description: EcoFlowP1SensorDescription,
+        parent_device_id: str,
     ) -> None:
         """Initialize an EcoFlow P1 sensor."""
         super().__init__(coordinator)
         self.entity_description = description
         base_id = entry.unique_id or entry.entry_id
         self._attr_unique_id = f"{base_id}_{description.key}"
-        self._attr_device_info = _device_info(coordinator, base_id, description)
+        self._attr_device_info = _device_info(
+            coordinator, base_id, description, parent_device_id
+        )
 
     @property
     def available(self) -> bool:
@@ -407,9 +411,9 @@ def _device_info(
     coordinator: EcoFlowP1Coordinator,
     base_id: str,
     description: EcoFlowP1SensorDescription,
+    parent_device_id: str,
 ) -> DeviceInfo:
     """Build the dongle, electricity-meter, or M-Bus child device."""
-    parent_identifier = (DOMAIN, base_id)
     data = coordinator.data
     if description.device_group == "dongle":
         return _dongle_device_info(coordinator, base_id)
@@ -421,7 +425,7 @@ def _device_info(
         )
         return DeviceInfo(
             identifiers={(DOMAIN, f"{base_id}:electricity")},
-            via_device=parent_identifier,
+            via_device_id=parent_device_id,
             manufacturer=info.manufacturer,
             model=info.model or "Electricity meter",
             name="Electricity meter",
@@ -442,7 +446,7 @@ def _device_info(
         model = f"{model} / {type_code}"
     return DeviceInfo(
         identifiers={(DOMAIN, f"{base_id}:mbus:{channel_number}")},
-        via_device=parent_identifier,
+        via_device_id=parent_device_id,
         model=model,
         name=(type_name or "M-Bus meter").title(),
         serial_number=channel.meter_serial if channel else None,
