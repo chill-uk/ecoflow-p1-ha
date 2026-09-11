@@ -27,9 +27,7 @@ class DecryptDiagnosticsTests(unittest.TestCase):
         private_key = PrivateKey.generate()
         public_key = base64.b64encode(bytes(private_key.public_key)).decode()
         private_key_text = base64.b64encode(bytes(private_key)).decode()
-        capture = capture_module.EncryptedDiagnosticCapture(
-            True, public_key=public_key
-        )
+        capture = capture_module.EncryptedDiagnosticCapture(True, public_key=public_key)
         capture.capture({"outcome": "accepted", "telegram": "secret telegram"})
         capture_data = capture.diagnostics()
         encrypted_records = capture_data.pop("encrypted_records")
