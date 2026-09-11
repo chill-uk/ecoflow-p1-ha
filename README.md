@@ -13,6 +13,10 @@ HTTP endpoint.
 
 It does **not** use the EcoFlow cloud API.
 
+> [!IMPORTANT]
+> This is an unofficial community integration. It is not affiliated with,
+> endorsed by, connected with, or supported by EcoFlow.
+
 # Installation
 
 ### HACS installation
