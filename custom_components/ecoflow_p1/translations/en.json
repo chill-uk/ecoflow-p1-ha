@@ -22,15 +22,15 @@
     "step": {
       "init": {
         "title": "EcoFlow P1 options",
-        "description": "Change the local address, polling interval, meter phases, or telegram debugging. Debug mode logs redacted telegrams that fail validation without changing normal entity availability.",
+        "description": "Change the local address, polling interval, meter phases, logging, or encrypted support capture.",
         "data": {
           "host": "Hostname or IP address",
           "poll_interval": "Polling interval (seconds)",
           "phase_mode": "Meter phases",
-          "telegram_debug": "Telegram debug mode"
+          "telegram_debug": "Telegram debug mode",\n          "encrypted_diagnostic_capture": "Encrypted diagnostic capture"
         },
         "data_description": {
-          "telegram_debug": "Immediately log transient request failures and redacted telegrams with CRC, parsing, or required-field errors. The 15-second grace period remains active."
+          "telegram_debug": "Immediately log transient request failures and redacted telegrams with CRC, parsing, or required-field errors. The 15-second grace period remains active.",\n          "encrypted_diagnostic_capture": "Encrypt raw telegrams immediately for support diagnostics. Capture stops after 10 minutes or 120 records. Download diagnostics before disabling this option or restarting Home Assistant."
         }
       }
     },
