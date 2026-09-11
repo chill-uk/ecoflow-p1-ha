@@ -5,8 +5,6 @@ from __future__ import annotations
 import base64
 import importlib.util
 import unittest
-from pathlib import Path
-
 from nacl.public import PrivateKey
 
 from .helpers import ROOT, load_module
