@@ -78,7 +78,7 @@ class EcoFlowP1Coordinator(DataUpdateCoordinator[EcoFlowP1Data]):
                     "EcoFlow P1 DSMR telegram failed integrity or parsing "
                     "(reported_crc=%s, calculated_crc=%s, crc_valid=%s, reason=%s). "
                     "The telegram below has equipment identifiers redacted and "
-                    "cannot reproduce the CRC:\\n%s",
+                    "cannot reproduce the CRC:\n%s",
                     err.crc.reported,
                     err.crc.calculated,
                     err.crc.valid,
@@ -114,7 +114,7 @@ class EcoFlowP1Coordinator(DataUpdateCoordinator[EcoFlowP1Data]):
                 "EcoFlow P1 DSMR telegram validation failed "
                 "(phase_mode=%s, missing=%s, invalid=%s, reported_crc=%s, "
                 "calculated_crc=%s, crc_valid=%s). The telegram below has equipment "
-                "identifiers redacted and cannot reproduce its CRC:\\n%s",
+                "identifiers redacted and cannot reproduce its CRC:\n%s",
                 self.phase_mode,
                 list(validation.missing),
                 validation.invalid,
