@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import time
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import Any, Final
@@ -32,11 +33,7 @@ class EncryptedDiagnosticCapture:
         self.enabled = enabled
         self.key_id = key_id
         self._now = now or (lambda: datetime.now(UTC))
-        if monotonic is None:
-            import time
-
-            monotonic = time.monotonic
-        self._monotonic = monotonic
+        self._monotonic = monotonic or time.monotonic
         self._box = (
             SealedBox(PublicKey(base64.b64decode(public_key, validate=True)))
             if enabled
