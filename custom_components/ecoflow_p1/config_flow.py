@@ -22,6 +22,7 @@ from .api import (
     EcoFlowP1ResponseError,
 )
 from .const import (
+    CONF_ENCRYPTED_DIAGNOSTIC_CAPTURE,
     CONF_PHASE_MODE,
     CONF_POLL_INTERVAL,
     CONF_TELEGRAM_DEBUG,
@@ -120,6 +121,9 @@ class EcoFlowP1OptionsFlow(OptionsFlowWithReload):
                                     CONF_TELEGRAM_DEBUG: user_input[
                                         CONF_TELEGRAM_DEBUG
                                     ],
+                                    CONF_ENCRYPTED_DIAGNOSTIC_CAPTURE: user_input[
+                                        CONF_ENCRYPTED_DIAGNOSTIC_CAPTURE
+                                    ],
                                 },
                             )
 
@@ -133,6 +137,9 @@ class EcoFlowP1OptionsFlow(OptionsFlowWithReload):
             CONF_PHASE_MODE, DEFAULT_PHASE_MODE
         )
         current_debug = self.config_entry.options.get(CONF_TELEGRAM_DEBUG, False)
+        current_capture = self.config_entry.options.get(
+            CONF_ENCRYPTED_DIAGNOSTIC_CAPTURE, False
+        )
         schema = vol.Schema(
             {
                 vol.Required(CONF_HOST, default=current_host): str,
@@ -151,6 +158,9 @@ class EcoFlowP1OptionsFlow(OptionsFlowWithReload):
                 ),
                 vol.Required(
                     CONF_TELEGRAM_DEBUG, default=current_debug
+                ): selector.BooleanSelector(),
+                vol.Required(
+                    CONF_ENCRYPTED_DIAGNOSTIC_CAPTURE, default=current_capture
                 ): selector.BooleanSelector(),
             }
         )
