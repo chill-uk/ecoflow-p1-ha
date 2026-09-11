@@ -38,4 +38,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcoFlowP1ConfigEntry) ->
 
 async def async_unload_entry(hass: HomeAssistant, entry: EcoFlowP1ConfigEntry) -> bool:
     """Unload an EcoFlow P1 config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        entry.runtime_data.coordinator.encrypted_capture.clear()
+    return unloaded
