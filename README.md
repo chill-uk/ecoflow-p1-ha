@@ -47,17 +47,17 @@ Open the integration's **Configure** dialog to:
 - temporarily enable telegram debug mode;
 - enable encrypted diagnostic capture for support.
 
-A changed address is probed before it is saved; serial-backed entries cannot be
-pointed at a different P1 dongle. Home Assistant's documented minimum polling
-interval is 5 seconds.
+A changed address is probed before it is saved
+
+## Debug mode
 
 Telegram debug mode changes logging only; it does not change entity availability
-or disable the 15-second value-retention grace period. Transient HTTP and response
-failures are logged immediately. A telegram with a missing, empty, malformed, or
-incorrectly unit-labelled required electricity field is logged together with its
-CRC result and raw telegram. Electricity and M-Bus equipment identifiers are
-redacted from that log. Disable debug mode after collecting the information needed
-for troubleshooting.
+or disable the 15-second value-retention grace period. 
+- Transient HTTP and response failures are logged immediately.
+- A telegram with a missing, empty, malformed, or incorrectly labelled field is logged together with its CRC result and telegram.
+- Electricity and M-Bus equipment identifiers are redacted from that log.
+
+Disable debug mode after collecting the information needed for troubleshooting.
 
 ## Encrypted diagnostic capture
 
@@ -77,23 +77,12 @@ request failures. To collect a support bundle:
 5. Disable capture after downloading the file.
 
 Download the diagnostics before disabling the option, reloading the integration,
-restarting Home Assistant, or removing the integration. Those actions discard the
-in-memory capture. The downloaded file exposes only general version, phase, capture,
+restarting Home Assistant, or removing the integration. 
+Those actions discard the in-memory capture. 
+
+The downloaded file exposes only general version, phase, capture,
 and encryption metadata. Raw telegrams and their equipment identifiers are inside
 the encrypted records and can only be read with the matching private key.
-
-### Decrypting a support bundle
-
-The private key must never be committed or sent to Home Assistant. On a trusted
-machine, install PyNaCl and run the included utility:
-
-```bash
-python -m pip install pynacl
-python scripts/decrypt_diagnostics.py diagnostics.json private.key > decrypted.json
-```
-
-The resulting `decrypted.json` contains raw, unredacted telegrams and must be
-handled as sensitive data.
 
 ## Workflow
 
