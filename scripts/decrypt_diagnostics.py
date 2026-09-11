@@ -26,6 +26,17 @@ def decrypt_diagnostics(
     diagnostics: dict[str, Any], private_key_text: str
 ) -> dict[str, Any]:
     """Return metadata and decrypted records."""
+    integration_data = diagnostics.get("data")
+    if not isinstance(integration_data, dict):
+        integration_data = diagnostics
+
+    encrypted_records = integration_data.get("encrypted_records")
+    if not isinstance(encrypted_records, list) or not encrypted_records:
+        raise ValueError(
+            "No encrypted records found. Ensure encrypted diagnostic capture was "
+            "enabled and had collected records before downloading diagnostics."
+        )
+
     try:
         private_key = PrivateKey(
             base64.b64decode(private_key_text.strip(), validate=True)
@@ -35,7 +46,7 @@ def decrypt_diagnostics(
 
     box = SealedBox(private_key)
     records = []
-    for index, encoded in enumerate(diagnostics.get("encrypted_records", []), start=1):
+    for index, encoded in enumerate(encrypted_records, start=1):
         try:
             ciphertext = base64.b64decode(encoded, validate=True)
             records.append(json.loads(box.decrypt(ciphertext)))
@@ -43,12 +54,12 @@ def decrypt_diagnostics(
             raise ValueError(f"Could not decrypt record {index}") from err
 
     return {
-        "schema_version": diagnostics.get("schema_version"),
-        "integration_version": diagnostics.get("integration_version"),
-        "home_assistant_version": diagnostics.get("home_assistant_version"),
-        "firmware_version": diagnostics.get("firmware_version"),
-        "phase_mode": diagnostics.get("phase_mode"),
-        "capture": diagnostics.get("capture"),
+        "schema_version": integration_data.get("schema_version"),
+        "integration_version": integration_data.get("integration_version"),
+        "home_assistant_version": integration_data.get("home_assistant_version"),
+        "firmware_version": integration_data.get("firmware_version"),
+        "phase_mode": integration_data.get("phase_mode"),
+        "capture": integration_data.get("capture"),
         "decrypted_records": records,
     }
 
