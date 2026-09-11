@@ -55,8 +55,7 @@ class EncryptedDiagnosticCapture:
             return False
         if (
             self._started_monotonic is not None
-            and self._monotonic() - self._started_monotonic
-            >= CAPTURE_DURATION_SECONDS
+            and self._monotonic() - self._started_monotonic >= CAPTURE_DURATION_SECONDS
         ):
             self._stop("duration_limit")
             return False
