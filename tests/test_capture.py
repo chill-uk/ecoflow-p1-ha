@@ -22,6 +22,13 @@ class EncryptedDiagnosticCaptureTests(unittest.TestCase):
         self.private_key = PrivateKey.generate()
         self.public_key = base64.b64encode(bytes(self.private_key.public_key)).decode()
 
+    def test_embedded_support_public_key_accepts_records(self) -> None:
+        capture = capture_module.EncryptedDiagnosticCapture(True)
+
+        capture.capture({"telegram": "secret"})
+
+        self.assertEqual(capture.diagnostics()["records_captured"], 1)
+
     def test_round_trip_contains_context_but_export_has_no_plaintext(self) -> None:
         telegram = "/ISK5\\2M550E-1011\r\n0-0:96.1.1(SECRET-METER-SERIAL)\r\n!0000\r\n"
         capture = capture_module.EncryptedDiagnosticCapture(
