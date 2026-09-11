@@ -24,8 +24,8 @@ class EncryptedDiagnosticCaptureTests(unittest.TestCase):
 
     def test_round_trip_contains_context_but_export_has_no_plaintext(self) -> None:
         telegram = (
-            "/ISK5\\2M550E-1011\\r\\n"
-            "0-0:96.1.1(SECRET-METER-SERIAL)\\r\\n!0000\\r\\n"
+            "/ISK5\\2M550E-1011\r\n"
+            "0-0:96.1.1(SECRET-METER-SERIAL)\r\n!0000\r\n"
         )
         capture = capture_module.EncryptedDiagnosticCapture(
             True, public_key=self.public_key, key_id="test-key"
