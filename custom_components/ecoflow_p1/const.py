@@ -9,6 +9,7 @@ DOMAIN: Final = "ecoflow_p1"
 CONF_POLL_INTERVAL: Final = "poll_interval"
 CONF_PHASE_MODE: Final = "phase_mode"
 CONF_TELEGRAM_DEBUG: Final = "telegram_debug"
+CONF_ENCRYPTED_DIAGNOSTIC_CAPTURE: Final = "encrypted_diagnostic_capture"
 DEFAULT_POLL_INTERVAL: Final = 5
 MIN_POLL_INTERVAL: Final = 5
 MAX_POLL_INTERVAL: Final = 300

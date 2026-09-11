@@ -13,6 +13,10 @@ HTTP endpoint.
 
 It does **not** use the EcoFlow cloud API.
 
+> [!IMPORTANT]
+> This is an unofficial community integration. It is not affiliated with,
+> endorsed by, connected with, or supported by EcoFlow.
+
 # Installation
 
 ### HACS installation
@@ -40,7 +44,8 @@ Open the integration's **Configure** dialog to:
 - change its hostname or IP address;
 - select a polling interval from 5 to 300 seconds;
 - select single-phase or three-phase validation;
-- temporarily enable telegram debug mode.
+- temporarily enable telegram debug mode;
+- enable encrypted diagnostic capture for support.
 
 A changed address is probed before it is saved; serial-backed entries cannot be
 pointed at a different P1 dongle. Home Assistant's documented minimum polling
@@ -53,6 +58,42 @@ incorrectly unit-labelled required electricity field is logged together with its
 CRC result and raw telegram. Electricity and M-Bus equipment identifiers are
 redacted from that log. Disable debug mode after collecting the information needed
 for troubleshooting.
+
+## Encrypted diagnostic capture
+
+Encrypted diagnostic capture is separate from telegram debug logging. When enabled,
+the integration encrypts each polling result immediately with the project's support
+public key and retains only ciphertext in memory. No raw telegram is written to
+disk or to `home-assistant.log`.
+
+A capture stops automatically after 10 minutes or 120 records. It includes valid
+frames, frames rejected by CRC or parsing, required-field validation results, and
+request failures. To collect a support bundle:
+
+1. Open the integration's **Configure** dialog.
+2. Enable **Encrypted diagnostic capture** and save.
+3. Reproduce the problem or wait for the capture to complete.
+4. Use the integration menu's **Download diagnostics** action.
+5. Disable capture after downloading the file.
+
+Download the diagnostics before disabling the option, reloading the integration,
+restarting Home Assistant, or removing the integration. Those actions discard the
+in-memory capture. The downloaded file exposes only general version, phase, capture,
+and encryption metadata. Raw telegrams and their equipment identifiers are inside
+the encrypted records and can only be read with the matching private key.
+
+### Decrypting a support bundle
+
+The private key must never be committed or sent to Home Assistant. On a trusted
+machine, install PyNaCl and run the included utility:
+
+```bash
+python -m pip install pynacl
+python scripts/decrypt_diagnostics.py diagnostics.json private.key > decrypted.json
+```
+
+The resulting `decrypted.json` contains raw, unredacted telegrams and must be
+handled as sensitive data.
 
 ## Workflow
 
