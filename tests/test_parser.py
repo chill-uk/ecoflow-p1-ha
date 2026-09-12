@@ -21,6 +21,15 @@ TELEGRAM = """/ISK5\\2M550E-1011\r
 !6A72\r
 """
 
+FLUVIUS_TELEGRAM = """/FLU5\\253770234_A\r
+1-0:1.8.1(000000.915*kWh)\r
+0-1:24.1.0(003)\r
+0-1:96.1.1(474153313233343536)\r
+0-1:24.4.0(1)\r
+0-1:24.2.3(260910212004S)(04619.261*m3)\r
+!0783\r
+"""
+
 
 class ParserTests(unittest.TestCase):
     """Verify tolerant, identifier-based parsing."""
@@ -38,6 +47,17 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(channel.device_type, 3)
         self.assertEqual(channel.meter_serial, "G123456")
         self.assertEqual(channel.delivered, Decimal("11118.375"))
+        self.assertEqual(channel.unit, "m3")
+
+    def test_fluvius_gas_obis_variants(self) -> None:
+        """Parse the Belgian e-MUCS identifiers used for gas meters."""
+        parsed = parser.parse_telegram(FLUVIUS_TELEGRAM)
+
+        channel = parsed.meter_info.mbus_channels[1]
+        self.assertEqual(channel.device_type, 3)
+        self.assertEqual(channel.meter_serial, "GAS123456")
+        self.assertEqual(channel.timestamp, "260910212004S")
+        self.assertEqual(channel.delivered, Decimal("4619.261"))
         self.assertEqual(channel.unit, "m3")
 
     def test_values_are_found_by_obis_and_units_are_validated(self) -> None:
