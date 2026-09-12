@@ -8,5 +8,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/chill-uk/Ecoflow-P1-ha/issues",
   "requirements": ["PyNaCl==1.6.2"],
-  "version": "0.2.9-beta.1"
+  "version": "0.2.9"
 }
