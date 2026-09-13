@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -97,6 +98,29 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowP1SensorDescription, ...] = (
     _energy("energy_export_tariff_2", "1-0:2.8.2"),
     _power("power_import", "1-0:1.7.0"),
     _power("power_export", "1-0:2.7.0"),
+    EcoFlowP1SensorDescription(
+        key="current_quarter_average",
+        name="Current quarter average",
+        obis="1-0:1.4.0",
+        expected_unit="kW",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    EcoFlowP1SensorDescription(
+        key="monthly_peak",
+        name="Monthly peak",
+        obis="1-0:1.6.0",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    EcoFlowP1SensorDescription(
+        key="last_13_months_peaks",
+        name="Last 13 months peaks",
+        obis="0-0:98.1.0",
+        icon="mdi:chart-timeline-variant",
+    ),
     EcoFlowP1SensorDescription(
         key="active_tariff",
         translation_key="active_tariff",
@@ -334,10 +358,98 @@ def _mbus_description(
     )
 
 
+
+def _obis_values(data: EcoFlowP1Data, obis: str) -> tuple[str, ...]:
+    """Return raw values for one OBIS entry."""
+    entry = data.telegram.obis.get(obis)
+    if entry is None:
+        return ()
+    return tuple(str(value) for value in entry.values)
+
+
+def _parse_kw(raw: str) -> Decimal | None:
+    """Parse an OBIS value formatted as <number>*kW."""
+    number, separator, unit = raw.rpartition("*")
+    if not separator or unit.casefold() != "kw":
+        return None
+    try:
+        return Decimal(number)
+    except (ArithmeticError, ValueError):
+        return None
+
+
+def _parse_dsmr_timestamp(raw: str) -> datetime | None:
+    """Parse a DSMR YYMMDDhhmmssS/W timestamp."""
+    if len(raw) != 13 or raw[-1] not in {"S", "W"}:
+        return None
+
+    try:
+        value = datetime.strptime(raw[:12], "%y%m%d%H%M%S")
+    except ValueError:
+        return None
+
+    offset = timedelta(hours=2 if raw[-1] == "S" else 1)
+    return value.replace(tzinfo=timezone(offset))
+
+
+def _timestamp_iso(raw: str) -> str:
+    """Return a DSMR timestamp as ISO 8601, preserving raw data on failure."""
+    parsed = _parse_dsmr_timestamp(raw)
+    return parsed.isoformat() if parsed is not None else raw
+
+
+def _fluvius_monthly_peak(data: EcoFlowP1Data) -> tuple[Decimal | None, str | None]:
+    """Return the current Fluvius monthly peak and its timestamp."""
+    values = _obis_values(data, "1-0:1.6.0")
+    for index in range(len(values) - 1, -1, -1):
+        peak = _parse_kw(values[index])
+        if peak is None:
+            continue
+        timestamp = values[index - 1] if index > 0 else None
+        return peak, timestamp
+    return None, None
+
+
+def _fluvius_peak_history(
+    data: EcoFlowP1Data,
+) -> list[tuple[str, str, Decimal]]:
+    """Parse Fluvius 0-0:98.1.0 monthly maximum-demand history."""
+    values = _obis_values(data, "0-0:98.1.0")
+    if len(values) < 6:
+        return []
+
+    try:
+        expected_count = int(values[0])
+    except ValueError:
+        return []
+
+    # Fluvius encodes:
+    # (count)(1-0:1.6.0)(1-0:1.6.0)
+    # followed by repeating groups of:
+    # (billing-period timestamp)(peak timestamp)(peak*kW)
+    payload = values[3:]
+    records: list[tuple[str, str, Decimal]] = []
+
+    for index in range(0, len(payload) - 2, 3):
+        period_timestamp = payload[index]
+        peak_timestamp = payload[index + 1]
+        peak = _parse_kw(payload[index + 2])
+        if peak is None:
+            continue
+        records.append((period_timestamp, peak_timestamp, peak))
+
+    return records[:expected_count]
+
 def _value_for_description(
     data: EcoFlowP1Data, description: EcoFlowP1SensorDescription
-) -> Decimal | int | None:
+) -> Decimal | int | str | None:
     """Read the current value described by an entity description."""
+    if description.key == "monthly_peak":
+        peak, _timestamp = _fluvius_monthly_peak(data)
+        return peak
+    if description.key == "last_13_months_peaks":
+        history = _fluvius_peak_history(data)
+        return ",".join(str(peak) for _period, _timestamp, peak in history) or None
     if description.metadata_key is not None:
         value = getattr(data, description.metadata_key, None)
         return value if isinstance(value, int) else None
@@ -377,7 +489,7 @@ class EcoFlowP1Sensor(CoordinatorEntity[EcoFlowP1Coordinator], SensorEntity):
         return super().available and self.native_value is not None
 
     @property
-    def native_value(self) -> Decimal | int | None:
+    def native_value(self) -> Decimal | int | str | None:
         """Return the latest sensor value."""
         return _value_for_description(self.coordinator.data, self.entity_description)
 
@@ -403,6 +515,27 @@ class EcoFlowP1Sensor(CoordinatorEntity[EcoFlowP1Coordinator], SensorEntity):
                 attributes["equipment_id"] = info.electricity_equipment_id
             if info.dsmr_version:
                 attributes["dsmr_version"] = info.dsmr_version
+
+            if self.entity_description.key == "monthly_peak":
+                _peak, timestamp = _fluvius_monthly_peak(self.coordinator.data)
+                if timestamp:
+                    attributes["peak_timestamp"] = _timestamp_iso(timestamp)
+
+            if self.entity_description.key == "last_13_months_peaks":
+                history = _fluvius_peak_history(self.coordinator.data)
+                attributes["history_count"] = len(history)
+                attributes["peaks_kw"] = [
+                    float(peak) for _period, _timestamp, peak in history
+                ]
+                attributes["peaks"] = [
+                    {
+                        "period_start": _timestamp_iso(period_timestamp),
+                        "peak_time": _timestamp_iso(peak_timestamp),
+                        "peak_kw": float(peak),
+                    }
+                    for period_timestamp, peak_timestamp, peak in history
+                ]
+
             return attributes or None
         return None
 
