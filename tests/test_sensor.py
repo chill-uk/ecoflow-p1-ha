@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import unittest
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from types import ModuleType, SimpleNamespace
 
-from .helpers import load_module
+from .helpers import INTEGRATION, load_module
 
 
 def _install_sensor_stubs() -> None:
@@ -176,6 +177,127 @@ class FakeRegistry:
 
 class SensorTests(unittest.TestCase):
     """Verify deterministic entity exposure and compatibility migrations."""
+
+    def test_demand_sensors_and_history_attributes(self) -> None:
+        """Expose watt scalar states and JSON-compatible monthly peak records."""
+        parser = load_module("custom_components.ecoflow_p1.parser")
+        telegram = parser.parse_telegram(
+            "/FLU5\\meter\n1-0:1.7.0(00.123*kW)\n"
+            "1-0:1.4.0(00.389*kW)\n"
+            "1-0:1.6.0(260902200000S)(03.600*kW)\n"
+            "0-0:98.1.0(2)(1-0:1.6.0)(1-0:1.6.0)"
+            "(250901000000S)(250831100000S)(04.157*kW)"
+            "(251001000000S)(250905213000S)(04.577*kW)\n!"
+        )
+        data = replace(_data_with_channel(models.MBusChannel(1)), telegram=telegram)
+        descriptions = {item.key: item for item in sensor.SENSOR_DESCRIPTIONS}
+        for key, expected in (
+            ("current_quarter_average", "389"),
+            ("monthly_peak", "3600"),
+        ):
+            description = descriptions[key]
+            self.assertEqual(description.translation_key, key)
+            self.assertEqual(description.device_class, "power")
+            self.assertEqual(description.state_class, "measurement")
+            self.assertEqual(description.native_unit_of_measurement, "W")
+            self.assertEqual(description.suggested_unit_of_measurement, "W")
+            self.assertFalse(description.entity_registry_enabled_default)
+            self.assertEqual(
+                sensor._value_for_description(data, description), Decimal(expected)
+            )
+            for path in ("strings.json", "translations/en.json"):
+                translations = json.loads((INTEGRATION / path).read_text())
+                self.assertIn(key, translations["entity"]["sensor"])
+        entity = sensor.EcoFlowP1Sensor(
+            SimpleNamespace(data=data),
+            SimpleNamespace(unique_id="test", entry_id="entry"),
+            descriptions["monthly_peak"],
+            "parent",
+        )
+        self.assertEqual(entity._attr_unique_id, "test_monthly_peak")
+        self.assertEqual(
+            entity.extra_state_attributes,
+            {
+                "peak_timestamp": "260902200000S",
+                "peak_datetime": "2026-09-02T20:00:00+02:00",
+                "history_count": 2,
+                "peaks": [
+                    {
+                        "period_timestamp": "250901000000S",
+                        "peak_timestamp": "250831100000S",
+                        "period_datetime": "2025-09-01T00:00:00+02:00",
+                        "peak_datetime": "2025-08-31T10:00:00+02:00",
+                        "peak_kw": 4.157,
+                    },
+                    {
+                        "period_timestamp": "251001000000S",
+                        "peak_timestamp": "250905213000S",
+                        "period_datetime": "2025-10-01T00:00:00+02:00",
+                        "peak_datetime": "2025-09-05T21:30:00+02:00",
+                        "peak_kw": 4.577,
+                    },
+                ],
+            },
+        )
+        json.dumps(entity.extra_state_attributes, allow_nan=False)
+        invalid_telegram = replace(
+            telegram,
+            obis={"1-0:1.6.0": models.ObisValue(("000000000000W", "03.600*kW"))},
+            demand_history=(models.DemandPeak("", "991332256199S", Decimal("4.157")),),
+        )
+        entity.coordinator.data = replace(data, telegram=invalid_telegram)
+        attributes = entity.extra_state_attributes
+        self.assertEqual(entity.native_value, Decimal("3600"))
+        self.assertIsNone(attributes["peak_datetime"])
+        self.assertEqual(attributes["peak_timestamp"], "000000000000W")
+        self.assertEqual(attributes["history_count"], 1)
+        self.assertIsNone(attributes["peaks"][0]["period_datetime"])
+        self.assertIsNone(attributes["peaks"][0]["peak_datetime"])
+        self.assertEqual(attributes["peaks"][0]["peak_kw"], 4.157)
+        json.dumps(attributes, allow_nan=False)
+        entity.coordinator.data = _data_with_channel(models.MBusChannel(1))
+        self.assertIsNone(entity.native_value)
+        self.assertFalse(entity.available)
+        self.assertEqual(
+            entity.extra_state_attributes, {"history_count": 0, "peaks": []}
+        )
+
+    def test_demand_rejects_invalid_readings(self) -> None:
+        """Missing, malformed and wrong-unit values do not become sensor states."""
+        descriptions = {item.key: item for item in sensor.SENSOR_DESCRIPTIONS}
+        data = _data_with_channel(models.MBusChannel(1))
+        for key in ("monthly_peak", "current_quarter_average"):
+            description = descriptions[key]
+            for raw in (
+                "",
+                "bad*kW",
+                "1*W",
+                "1*kWh",
+                "1",
+                "NaN*kW",
+                "Infinity*kW",
+                "-1*kW",
+            ):
+                with self.subTest(key=key, raw=raw):
+                    groups = ("000000000000W", raw) if key == "monthly_peak" else (raw,)
+                    telegram = replace(
+                        data.telegram, obis={description.obis: models.ObisValue(groups)}
+                    )
+                    self.assertIsNone(
+                        sensor._value_for_description(
+                            replace(data, telegram=telegram), description
+                        )
+                    )
+
+    def test_demand_sensors_migrate_legacy_kw_preference(self) -> None:
+        """Clear an automatic legacy kW preference for demand sensors too."""
+        registry = FakeRegistry(
+            {"test_monthly_peak": "sensor.peak"},
+            {"sensor.peak": SimpleNamespace(unit_of_measurement="kW", options={})},
+        )
+        sensor.er.async_get = lambda _hass: registry
+        sensor._migrate_legacy_power_units(None, "test")
+        self.assertEqual(registry.unit_updates, [("sensor.peak", None)])
 
     def test_exposes_every_static_dsmr_description(self) -> None:
         """Register static DSMR entities even when a telegram omits their values."""

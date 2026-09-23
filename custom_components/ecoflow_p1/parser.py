@@ -7,6 +7,7 @@ import string
 from decimal import Decimal
 
 from .models import (
+    DemandPeak,
     MBusChannel,
     MeterInfo,
     ObisValue,
@@ -83,6 +84,7 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
     return ParsedTelegram(
         header=lines[0],
         obis=parsed,
+        demand_history=parse_demand_history(parsed.get("0-0:98.1.0")),
         meter_info=MeterInfo(
             manufacturer=manufacturer,
             model=model,
@@ -92,6 +94,35 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
             mbus_channels=_parse_mbus_channels(parsed),
         ),
     )
+
+
+def parse_demand_history(value: ObisValue | None) -> tuple[DemandPeak, ...]:
+    """Read eMUCS-P1 history: count, two capture objects, then triples.
+
+    See Fluvius eMUCS-P1 v2.1.1, section 3 telegram examples. Keep raw
+    timestamps (including uninitialized placeholders) without UTC conversion.
+    Reject inconsistent framing so records cannot silently shift columns.
+    """
+    if value is None or len(value.values) < 3:
+        return ()
+    count, first, second, *groups = value.values
+    if not count.isascii() or not count.isdecimal():
+        return ()
+    if (first, second) != ("1-0:1.6.0", "1-0:1.6.0"):
+        return ()
+    if len(groups) != int(count) * 3:
+        return ()
+    records = []
+    for index in range(0, len(groups), 3):
+        period, timestamp, raw = groups[index : index + 3]
+        reading = split_number_and_unit(raw)
+        if reading is None:
+            continue
+        peak, unit = reading
+        if unit != "kW" or not peak.is_finite() or peak < 0:
+            continue
+        records.append(DemandPeak(period, timestamp, peak))
+    return tuple(records)
 
 
 def _parse_header(header: str) -> tuple[str | None, str | None]:

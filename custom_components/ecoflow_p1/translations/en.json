@@ -72,6 +72,12 @@
       "power_export": {
         "name": "Power production"
       },
+      "current_quarter_average": {
+        "name": "Current quarter average"
+      },
+      "monthly_peak": {
+        "name": "Monthly peak"
+      },
       "active_tariff": {
         "name": "Tariff indicator"
       },
