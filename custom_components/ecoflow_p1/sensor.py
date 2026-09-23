@@ -33,7 +33,7 @@ from . import EcoFlowP1ConfigEntry
 from .const import DOMAIN, PHASE_MODE_THREE
 from .coordinator import EcoFlowP1Coordinator
 from .mbus import classify_mbus_channel, mbus_device_type_name
-from .models import EcoFlowP1Data, MBusChannel
+from .models import EcoFlowP1Data, MBusChannel, parse_dsmr_datetime
 
 DeviceGroup = Literal["dongle", "electricity", "mbus"]
 
@@ -97,6 +97,8 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowP1SensorDescription, ...] = (
     _energy("energy_export_tariff_2", "1-0:2.8.2"),
     _power("power_import", "1-0:1.7.0"),
     _power("power_export", "1-0:2.7.0"),
+    _power("current_quarter_average", "1-0:1.4.0", enabled=False),
+    _power("monthly_peak", "1-0:1.6.0", enabled=False),
     EcoFlowP1SensorDescription(
         key="active_tariff",
         translation_key="active_tariff",
@@ -346,8 +348,24 @@ def _value_for_description(
         return channel.delivered if channel is not None else None
     if description.obis is None:
         return None
+    if description.key == "monthly_peak":
+        item = data.telegram.obis.get(description.obis)
+        if item is None or len(item.values) != 2:
+            return None
     value = data.telegram.decimal(description.obis, description.expected_unit)
+    if (
+        description.key in {"monthly_peak", "current_quarter_average"}
+        and value is not None
+        and (not value.is_finite() or value < 0)
+    ):
+        return None
     return value * description.value_multiplier if value is not None else None
+
+
+def _datetime_attribute(timestamp: str) -> str | None:
+    """Serialize an aware datetime for Home Assistant's JSON attributes."""
+    value = parse_dsmr_datetime(timestamp)
+    return value.isoformat() if value is not None else None
 
 
 class EcoFlowP1Sensor(CoordinatorEntity[EcoFlowP1Coordinator], SensorEntity):
@@ -399,6 +417,23 @@ class EcoFlowP1Sensor(CoordinatorEntity[EcoFlowP1Coordinator], SensorEntity):
             return attributes
         if self.entity_description.device_group == "electricity":
             attributes = {}
+            if self.entity_description.key == "monthly_peak":
+                telegram = self.coordinator.data.telegram
+                peak = telegram.obis.get("1-0:1.6.0")
+                if peak is not None and len(peak.values) == 2:
+                    attributes["peak_timestamp"] = peak.values[0]
+                    attributes["peak_datetime"] = _datetime_attribute(peak.values[0])
+                attributes["history_count"] = len(telegram.demand_history)
+                attributes["peaks"] = [
+                    {
+                        "period_timestamp": record.period_timestamp,
+                        "peak_timestamp": record.peak_timestamp,
+                        "period_datetime": _datetime_attribute(record.period_timestamp),
+                        "peak_datetime": _datetime_attribute(record.peak_timestamp),
+                        "peak_kw": float(record.peak_kw),
+                    }
+                    for record in telegram.demand_history
+                ]
             if info.electricity_equipment_id:
                 attributes["equipment_id"] = info.electricity_equipment_id
             if info.dsmr_version:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
 
@@ -51,12 +52,22 @@ class MeterInfo:
 
 
 @dataclass(frozen=True, slots=True)
+class DemandPeak:
+    """One monthly demand record, retaining DSMR local timestamps verbatim."""
+
+    period_timestamp: str
+    peak_timestamp: str
+    peak_kw: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class ParsedTelegram:
     """A parsed DSMR telegram."""
 
     header: str
     obis: dict[str, ObisValue]
     meter_info: MeterInfo
+    demand_history: tuple[DemandPeak, ...] = ()
 
     def decimal(
         self, identifier: str, expected_unit: str | None = None
@@ -101,3 +112,26 @@ def split_number_and_unit(value: str) -> tuple[Decimal, str | None] | None:
     except (InvalidOperation, ValueError):
         return None
     return parsed, unit or None
+
+
+def parse_dsmr_datetime(value: str) -> datetime | None:
+    """Decode a Fluvius YYMMDDhhmmssS/W timestamp with its explicit offset.
+
+    S denotes CEST (UTC+02:00), W denotes CET (UTC+01:00). Using the
+    supplied offset disambiguates the repeated hour when summer time ends.
+    Meter years are interpreted as 2000–2099; placeholders return None.
+    """
+    if (
+        len(value) != 13
+        or value[-1] not in {"S", "W"}
+        or not value[:12].isascii()
+        or not value[:12].isdigit()
+    ):
+        return None
+    parts = [int(value[index : index + 2]) for index in range(0, 12, 2)]
+    parts[0] += 2000
+    offset = timezone(timedelta(hours=2 if value[-1] == "S" else 1))
+    try:
+        return datetime(*parts, tzinfo=offset)
+    except ValueError:
+        return None

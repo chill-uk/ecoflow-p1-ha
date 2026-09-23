@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from decimal import Decimal
 
 from .helpers import load_module
@@ -51,6 +52,31 @@ def _data(
 
 class EcoFlowP1DataGraceTests(unittest.TestCase):
     """Test bounded retention of omitted DSMR values."""
+
+    def test_demand_history_survives_rebuilding_and_expires(self) -> None:
+        """Retain parsed demand data for exactly the existing grace interval."""
+        parser = load_module("custom_components.ecoflow_p1.parser")
+        telegram = parser.parse_telegram(
+            "/FLU5\\meter\n1-0:1.7.0(00.123*kW)\n"
+            "1-0:1.4.0(00.389*kW)\n"
+            "1-0:1.6.0(260902200000S)(03.600*kW)\n"
+            "0-0:98.1.0(1)(1-0:1.6.0)(1-0:1.6.0)"
+            "(250901000000S)(250831100000S)(04.157*kW)\n!"
+        )
+        cache = grace.EcoFlowP1DataGrace(15)
+        initial = cache.update(replace(_data(), telegram=telegram), 100)
+        retained = cache.update(_data(), 114)
+        for result in (initial, retained):
+            self.assertEqual(result.telegram.demand_history, telegram.demand_history)
+            self.assertEqual(
+                result.telegram.decimal("1-0:1.4.0", "kW"), Decimal("0.389")
+            )
+            self.assertEqual(
+                result.telegram.decimal("1-0:1.6.0", "kW"), Decimal("3.600")
+            )
+        expired = cache.update(_data(), 115)
+        self.assertEqual(expired.telegram.demand_history, ())
+        self.assertIsNone(expired.telegram.decimal("1-0:1.6.0", "kW"))
 
     def test_retains_value_during_one_off_omission(self) -> None:
         cache = grace.EcoFlowP1DataGrace(15)

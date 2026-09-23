@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import cast
 
 from .models import EcoFlowP1Data, MBusChannel, MeterInfo, ObisValue, ParsedTelegram
+from .parser import parse_demand_history
 
 
 def is_within_grace(
@@ -112,6 +113,7 @@ class EcoFlowP1DataGrace:
         telegram = ParsedTelegram(
             header=incoming.telegram.header,
             obis=obis,
+            demand_history=parse_demand_history(obis.get("0-0:98.1.0")),
             meter_info=meter_info,
         )
         return EcoFlowP1Data(
