@@ -60,6 +60,21 @@ class FakeSession:
 class ApiTests(unittest.IsolatedAsyncioTestCase):
     """Verify endpoint, response validation, and tolerant metadata parsing."""
 
+    def test_public_errors_keep_legacy_hierarchy(self) -> None:
+        """Transport refactoring must not change coordinator retry behavior."""
+        self.assertTrue(
+            issubclass(api_module.EcoFlowP1ConnectionError, api_module.EcoFlowP1Error)
+        )
+        self.assertTrue(
+            issubclass(api_module.EcoFlowP1ResponseError, api_module.EcoFlowP1Error)
+        )
+        self.assertTrue(
+            issubclass(
+                api_module.EcoFlowP1TelegramError,
+                api_module.EcoFlowP1ResponseError,
+            )
+        )
+
     async def test_fetches_local_endpoint_and_parses_payload(self) -> None:
         """Return a complete typed response from valid JSON."""
         session = FakeSession(

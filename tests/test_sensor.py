@@ -305,14 +305,49 @@ class SensorTests(unittest.TestCase):
         descriptions = sensor._available_descriptions(data)
         keys = {description.key for description in descriptions}
 
-        self.assertTrue(
-            {description.key for description in sensor.SENSOR_DESCRIPTIONS} <= keys
-        )
+        expected_static = {
+            description.key
+            for description in sensor.SENSOR_DESCRIPTIONS
+            if description.key not in {"energy_import_total", "energy_export_total"}
+        }
+        self.assertTrue(expected_static <= keys)
+        self.assertNotIn("energy_import_total", keys)
+        self.assertNotIn("energy_export_total", keys)
         for phase in (1, 2, 3):
             self.assertIn(f"voltage_l{phase}", keys)
             self.assertIn(f"current_l{phase}", keys)
             self.assertIn(f"power_import_l{phase}", keys)
             self.assertIn(f"power_export_l{phase}", keys)
+
+    def test_total_counters_are_exposed_only_when_reported(self) -> None:
+        """Do not create permanently unavailable total-counter entities."""
+        base = _data_with_channel(models.MBusChannel(1))
+        telegram = replace(
+            base.telegram,
+            obis={
+                "1-0:1.8.0": models.ObisValue(("10.000*kWh",)),
+                "1-0:2.8.0": models.ObisValue(("2.000*kWh",)),
+            },
+        )
+        descriptions = {
+            item.key: item
+            for item in sensor._available_descriptions(replace(base, telegram=telegram))
+        }
+
+        self.assertIn("energy_import_total", descriptions)
+        self.assertIn("energy_export_total", descriptions)
+        self.assertEqual(
+            sensor._value_for_description(
+                replace(base, telegram=telegram), descriptions["energy_import_total"]
+            ),
+            Decimal("10.000"),
+        )
+        self.assertEqual(
+            sensor._value_for_description(
+                replace(base, telegram=telegram), descriptions["energy_export_total"]
+            ),
+            Decimal("2.000"),
+        )
 
     def test_all_power_descriptions_use_watts(self) -> None:
         """Keep aggregate and per-phase power readings in watts."""
