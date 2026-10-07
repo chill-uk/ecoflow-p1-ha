@@ -15,11 +15,11 @@ class EcoFlowP1TransportError(Exception):
     """Base exception for local transport failures."""
 
 
-class EcoFlowP1ConnectionError(EcoFlowP1TransportError):
+class EcoFlowP1TransportConnectionError(EcoFlowP1TransportError):
     """The EcoFlow P1 could not be reached."""
 
 
-class EcoFlowP1ResponseError(EcoFlowP1TransportError):
+class EcoFlowP1TransportResponseError(EcoFlowP1TransportError):
     """The EcoFlow P1 returned an invalid HTTP/JSON response."""
 
 
@@ -45,17 +45,17 @@ class EcoFlowP1Client:
                     response.raise_for_status()
                     payload = await response.json(content_type=None)
         except TimeoutError as err:
-            raise EcoFlowP1ConnectionError(
+            raise EcoFlowP1TransportConnectionError(
                 f"Request to {API_PATH} timed out after {REQUEST_TIMEOUT} seconds"
             ) from err
         except ClientError as err:
             detail = str(err).strip() or type(err).__name__
-            raise EcoFlowP1ConnectionError(
+            raise EcoFlowP1TransportConnectionError(
                 f"Request to {API_PATH} failed: {detail}"
             ) from err
         except ValueError as err:
-            raise EcoFlowP1ResponseError("Device returned invalid JSON") from err
+            raise EcoFlowP1TransportResponseError("Device returned invalid JSON") from err
 
         if not isinstance(payload, Mapping):
-            raise EcoFlowP1ResponseError("JSON response is not an object")
+            raise EcoFlowP1TransportResponseError("JSON response is not an object")
         return payload
