@@ -10,7 +10,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/chill-uk/Ecoflow-P1-ha/issues",
   "requirements": [
-    "PyNaCl==1.6.2",
+    "PyNaCl>=1.6.2",
     "dsmr-parser>=1.11.1"
   ],
   "version": "0.3.0"
