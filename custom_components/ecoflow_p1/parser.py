@@ -121,9 +121,7 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
     )
 
 
-def _select_parser(
-    header: str, values: dict[str, ObisValue]
-) -> TelegramParser:
+def _select_parser(header: str, values: dict[str, ObisValue]) -> TelegramParser:
     """Select the closest dsmr-parser specification for the telegram."""
     manufacturer, _ = _parse_header(header)
     if manufacturer == "FLU":
