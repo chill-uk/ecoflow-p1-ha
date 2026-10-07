@@ -97,9 +97,14 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
 
     manufacturer, model = _parse_header(lines[0])
     equipment = getattr(parsed, "EQUIPMENT_IDENTIFIER", None)
-    equipment_id = str(equipment.value) if equipment is not None else _first_plain_value(
-        obis_values, "0-0:96.1.1", "0-0:96.1.0"
-    )
+    if equipment is not None:
+        equipment_id = str(equipment.value)
+    else:
+        equipment_id = _first_plain_value(
+            obis_values,
+            "0-0:96.1.1",
+            "0-0:96.1.0",
+        )
 
     return ParsedTelegram(
         header=lines[0],
