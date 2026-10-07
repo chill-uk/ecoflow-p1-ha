@@ -158,6 +158,12 @@
       },
       "mbus_energy": {
         "name": "Energy delivered"
+      },
+      "energy_import_total": {
+        "name": "Energy import total"
+      },
+      "energy_export_total": {
+        "name": "Energy export total"
       }
     }
   }
