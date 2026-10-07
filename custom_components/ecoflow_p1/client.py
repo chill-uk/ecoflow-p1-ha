@@ -54,7 +54,9 @@ class EcoFlowP1Client:
                 f"Request to {API_PATH} failed: {detail}"
             ) from err
         except ValueError as err:
-            raise EcoFlowP1TransportResponseError(\n                "Device returned invalid JSON"\n            ) from err
+            raise EcoFlowP1TransportResponseError(
+                "Device returned invalid JSON"
+            ) from err
 
         if not isinstance(payload, Mapping):
             raise EcoFlowP1TransportResponseError("JSON response is not an object")
