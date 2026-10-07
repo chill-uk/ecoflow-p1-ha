@@ -1,14 +1,16 @@
-"""Local HTTP client for the EcoFlow P1 Energy Tracker."""
+"""Local API facade for the EcoFlow P1 Energy Tracker."""
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Mapping
 from typing import Any
 
-from aiohttp import ClientError, ClientSession
+from aiohttp import ClientSession
 
-from .const import API_PATH, REQUEST_TIMEOUT
+from .client import (
+    EcoFlowP1Client,
+    EcoFlowP1ConnectionError,
+    EcoFlowP1ResponseError,
+)
 from .models import EcoFlowP1Data
 from .parser import InvalidTelegramError, parse_telegram
 from .validation import CrcResult, validate_crc
@@ -16,14 +18,6 @@ from .validation import CrcResult, validate_crc
 
 class EcoFlowP1Error(Exception):
     """Base exception for EcoFlow P1 communication errors."""
-
-
-class EcoFlowP1ConnectionError(EcoFlowP1Error):
-    """The EcoFlow P1 could not be reached."""
-
-
-class EcoFlowP1ResponseError(EcoFlowP1Error):
-    """The EcoFlow P1 returned an invalid response."""
 
 
 class EcoFlowP1TelegramError(EcoFlowP1ResponseError):
@@ -37,41 +31,20 @@ class EcoFlowP1TelegramError(EcoFlowP1ResponseError):
 
 
 class EcoFlowP1Api:
-    """Async client for the local EcoFlow P1 endpoint."""
+    """Async facade combining raw HTTP transport and DSMR interpretation."""
 
     def __init__(self, session: ClientSession, host: str) -> None:
-        """Initialize the API client."""
-        self._session = session
-        self._host = host
+        """Initialize the API facade."""
+        self._client = EcoFlowP1Client(session, host)
 
     @property
     def host(self) -> str:
         """Return the configured host."""
-        return self._host
+        return self._client.host
 
     async def async_get_data(self) -> EcoFlowP1Data:
         """Fetch and parse one response from /getdebugdata."""
-        try:
-            async with asyncio.timeout(REQUEST_TIMEOUT):
-                async with self._session.get(
-                    f"http://{self._host}{API_PATH}", allow_redirects=False
-                ) as response:
-                    response.raise_for_status()
-                    payload = await response.json(content_type=None)
-        except TimeoutError as err:
-            raise EcoFlowP1ConnectionError(
-                f"Request to {API_PATH} timed out after {REQUEST_TIMEOUT} seconds"
-            ) from err
-        except ClientError as err:
-            detail = str(err).strip() or type(err).__name__
-            raise EcoFlowP1ConnectionError(
-                f"Request to {API_PATH} failed: {detail}"
-            ) from err
-        except ValueError as err:
-            raise EcoFlowP1ResponseError("Device returned invalid JSON") from err
-
-        if not isinstance(payload, Mapping):
-            raise EcoFlowP1ResponseError("JSON response is not an object")
+        payload = await self._client.async_get_debug_payload()
 
         telegram_raw = payload.get("debugdata")
         if not isinstance(telegram_raw, str):
@@ -112,3 +85,13 @@ def _optional_int(value: Any) -> int | None:
         return int(value) if value is not None else None
     except (TypeError, ValueError):
         return None
+
+
+# Re-export transport errors to preserve the integration's existing import surface.
+__all__ = [
+    "EcoFlowP1Api",
+    "EcoFlowP1ConnectionError",
+    "EcoFlowP1Error",
+    "EcoFlowP1ResponseError",
+    "EcoFlowP1TelegramError",
+]
