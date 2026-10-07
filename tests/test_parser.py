@@ -146,7 +146,7 @@ class ParserTests(unittest.TestCase):
 1-0:1.8.0(010000.123*kWh)
 1-0:2.8.0(000500.456*kWh)
 !
-""".replace("\/", "/")
+"""
 
         parsed = parser.parse_telegram(telegram)
 
