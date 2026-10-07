@@ -8,8 +8,8 @@ from aiohttp import ClientSession
 
 from .client import (
     EcoFlowP1Client,
-    EcoFlowP1ConnectionError,
-    EcoFlowP1ResponseError,
+    EcoFlowP1TransportConnectionError,
+    EcoFlowP1TransportResponseError,
 )
 from .models import EcoFlowP1Data
 from .parser import InvalidTelegramError, parse_telegram
@@ -18,6 +18,14 @@ from .validation import CrcResult, validate_crc
 
 class EcoFlowP1Error(Exception):
     """Base exception for EcoFlow P1 communication errors."""
+
+
+class EcoFlowP1ConnectionError(EcoFlowP1Error):
+    """The EcoFlow P1 could not be reached."""
+
+
+class EcoFlowP1ResponseError(EcoFlowP1Error):
+    """The EcoFlow P1 returned an invalid response."""
 
 
 class EcoFlowP1TelegramError(EcoFlowP1ResponseError):
@@ -44,7 +52,12 @@ class EcoFlowP1Api:
 
     async def async_get_data(self) -> EcoFlowP1Data:
         """Fetch and parse one response from /getdebugdata."""
-        payload = await self._client.async_get_debug_payload()
+        try:
+            payload = await self._client.async_get_debug_payload()
+        except EcoFlowP1TransportConnectionError as err:
+            raise EcoFlowP1ConnectionError(str(err)) from err
+        except EcoFlowP1TransportResponseError as err:
+            raise EcoFlowP1ResponseError(str(err)) from err
 
         telegram_raw = payload.get("debugdata")
         if not isinstance(telegram_raw, str):
