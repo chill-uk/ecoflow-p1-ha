@@ -139,6 +139,20 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(channel.delivered, Decimal("4619.261"))
         self.assertEqual(channel.unit, "m3")
 
+    def test_supports_total_import_export_counters(self) -> None:
+        """Support the same raw total counters as the Homey integration."""
+        telegram = """/ISK5\\2M550E-1011
+1-3:0.2.8(50)
+1-0:1.8.0(010000.123*kWh)
+1-0:2.8.0(000500.456*kWh)
+!
+""".replace("\/", "/")
+
+        parsed = parser.parse_telegram(telegram)
+
+        self.assertEqual(parsed.decimal("1-0:1.8.0", "kWh"), Decimal("10000.123"))
+        self.assertEqual(parsed.decimal("1-0:2.8.0", "kWh"), Decimal("500.456"))
+
     def test_values_are_found_by_obis_and_units_are_validated(self) -> None:
         """Read values independently of line positions and reject wrong units."""
         parsed = parser.parse_telegram(TELEGRAM)
