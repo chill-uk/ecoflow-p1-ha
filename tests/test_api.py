@@ -69,7 +69,7 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
             issubclass(api_module.EcoFlowP1ResponseError, api_module.EcoFlowP1Error)
         )
         self.assertTrue(
-            issubclass(api_module.EcoFlowP1TelegramError, api_module.EcoFlowP1ResponseError)
+            issubclass(\n                api_module.EcoFlowP1TelegramError,\n                api_module.EcoFlowP1ResponseError,\n            )
         )
 
     async def test_fetches_local_endpoint_and_parses_payload(self) -> None:
