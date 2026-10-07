@@ -12,7 +12,13 @@ from dsmr_parser.exceptions import ParseError
 from dsmr_parser.parsers import TelegramParser
 
 from .extensions import parse_demand_history
-from .models import MBusChannel, MeterInfo, ObisValue, ParsedTelegram
+from .models import (
+    MBusChannel,
+    MeterInfo,
+    ObisValue,
+    ParsedTelegram,
+    split_number_and_unit,
+)
 
 _OBIS_LINE = re.compile(
     r"^(?P<identifier>\d+-\d+:\d+\.\d+\.\d+)(?P<groups>(?:\([^()]*(?:\*[^()]*)?\))+)$"
@@ -83,7 +89,9 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
     obis_values = _raw_obis_values(lines)
 
     try:
-        parsed = _select_parser(lines[0], obis_values).parse(_normalize_line_endings(telegram))
+        parsed = _select_parser(lines[0], obis_values).parse(
+            _parser_safe_telegram(telegram)
+        )
     except ParseError as err:
         raise InvalidTelegramError("Unable to parse DSMR telegram") from err
 
@@ -221,6 +229,34 @@ def _first_plain_value(values: dict[str, ObisValue], *identifiers: str) -> str |
         if (value := _plain_value(values, identifier)) is not None:
             return value
     return None
+
+
+def _parser_safe_telegram(telegram: str) -> str:
+    """Remove malformed optional extensions before invoking dsmr-parser.
+
+    EcoFlow historically treats malformed optional fields as absent rather than
+    rejecting an otherwise valid telegram. Preserve that contract while still
+    using dsmr-parser for standard DSMR interpretation.
+    """
+    safe_lines: list[str] = []
+    for line in telegram.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        stripped = line.strip()
+
+        # Fluvius 13-month demand history is parsed separately so raw placeholder
+        # timestamps remain available and malformed history cannot shift records.
+        if stripped.startswith("0-0:98.1.0("):
+            continue
+
+        match = _OBIS_LINE.fullmatch(stripped)
+        if match and re.fullmatch(r"0-\d+:24\.2\.[13]", match.group("identifier")):
+            groups = tuple(_GROUP.findall(match.group("groups")))
+            reading = split_number_and_unit(groups[-1]) if groups else None
+            if reading is None:
+                continue
+
+        safe_lines.append(line)
+
+    return _normalize_line_endings("\n".join(safe_lines))
 
 
 def _normalize_line_endings(telegram: str) -> str:
