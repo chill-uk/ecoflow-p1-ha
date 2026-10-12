@@ -52,9 +52,7 @@ class ParserTests(unittest.TestCase):
                 expected_period = datetime(
                     period_year, period_month, 1, tzinfo=local_zone
                 )
-                self.assertEqual(
-                    peak.datetime, expected_period.astimezone(UTC)
-                )
+                self.assertEqual(peak.datetime, expected_period.astimezone(UTC))
                 self.assertEqual(peak.unit, "kW")
                 self.assertEqual(
                     peak.value,
@@ -84,14 +82,9 @@ class ParserTests(unittest.TestCase):
         for raw, expected in fixtures:
             with self.subTest(raw=raw):
                 history = (
-                    "0-0:98.1.0(1)(1-0:1.6.0)(1-0:1.6.0)"
-                    f"({raw})({raw})(04.157*kW)"
+                    f"0-0:98.1.0(1)(1-0:1.6.0)(1-0:1.6.0)({raw})({raw})(04.157*kW)"
                 )
-                telegram = (
-                    "/FLU5\\SYNTHETIC\n1-0:1.7.0(00.123*kW)\n"
-                    + history
-                    + "\n!"
-                )
+                telegram = "/FLU5\\SYNTHETIC\n1-0:1.7.0(00.123*kW)\n" + history + "\n!"
                 parsed = parser.parse_telegram(telegram)
                 self.assertEqual(len(parsed.demand_history), 1)
                 peak = parsed.demand_history[0]
