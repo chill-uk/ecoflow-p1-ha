@@ -91,6 +91,8 @@ def _count(key: str, obis: str, icon: str) -> EcoFlowP1SensorDescription:
 
 
 SENSOR_DESCRIPTIONS: tuple[EcoFlowP1SensorDescription, ...] = (
+    _energy("energy_import_total", "1-0:1.8.0"),
+    _energy("energy_export_total", "1-0:2.8.0"),
     _energy("energy_import_tariff_1", "1-0:1.8.1"),
     _energy("energy_import_tariff_2", "1-0:1.8.2"),
     _energy("energy_export_tariff_1", "1-0:2.8.1"),
@@ -223,11 +225,14 @@ def _available_descriptions(
     data: EcoFlowP1Data, phase_mode: str | None = None
 ) -> list[EcoFlowP1SensorDescription]:
     """Return all DSMR descriptions plus discovered M-Bus readings."""
+    optional_meter_keys = {"energy_import_total", "energy_export_total"}
     descriptions = [
         replace(description, entity_registry_enabled_default=True)
         if phase_mode == PHASE_MODE_THREE and description.key.endswith(("_l2", "_l3"))
         else description
         for description in SENSOR_DESCRIPTIONS
+        if description.key not in optional_meter_keys
+        or (description.obis is not None and description.obis in data.telegram.obis)
     ]
 
     for channel in data.telegram.meter_info.mbus_channels.values():
