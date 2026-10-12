@@ -86,9 +86,9 @@ class ParserTests(unittest.TestCase):
                     f"({raw})({raw})(04.157*kW)"
                 )
                 telegram = (
-                    "/FLU5\\\\SYNTHETIC\\n1-0:1.7.0(00.123*kW)\\n"
+                    "/FLU5\\SYNTHETIC\n1-0:1.7.0(00.123*kW)\n"
                     + history
-                    + "\\n!"
+                    + "\n!"
                 )
                 parsed = parser.parse_telegram(telegram)
                 self.assertEqual(len(parsed.demand_history), 1)
