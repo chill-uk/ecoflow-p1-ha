@@ -25,6 +25,8 @@ Home Assistant entities.
   strings used by Home Assistant.
 - `custom_components/ecoflow_p1/translations/en.json`: English translation copy.
 - `tests/`: unit tests and DSMR fixtures.
+- `p1-dsmr-common`: published shared compatibility package maintained separately at
+  `chill-uk/p1-dsmr-common` (not vendored into this repository).
 - `.github/workflows/tests.yml`: Python 3.14 unit-test workflow.
 - `.github/workflows/validate.yml`: Ruff, hassfest, and HACS validation.
 
@@ -36,7 +38,7 @@ Use Python 3.14 when possible. A minimal local environment can be created with:
 python3.14 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install aiohttp pynacl ruff
+python -m pip install aiohttp pynacl 'dsmr-parser>=1.11.1' 'p1-dsmr-common>=0.1.1' ruff
 ```
 
 Run these commands before presenting or pushing a change:
@@ -100,6 +102,31 @@ return (
 )
 ```
 
+## Parsing ownership and shared compatibility
+
+- Upstream `dsmr-parser` is authoritative for standard DSMR, M-Bus, and
+  Fluvius parsing. Do not implement a second general-purpose parser.
+- `p1-dsmr-common` provides reusable compatibility/spec extensions, neutral
+  semantic mappings, CRC validation, identifier redaction, and M-Bus
+  normalization/classification. Reuse its helpers rather than copying them.
+- Keep EcoFlow-specific HTTP transport, raw OBIS compatibility, Home Assistant
+  entity descriptions, translations, unique IDs, and device hierarchy here.
+- When mapping upstream fields, local integration mappings override shared
+  `GLOBAL_MAPPING` defaults. Keep presentation/translation names local.
+- Retain the raw OBIS map because released EcoFlow entities depend on OBIS keys;
+  shared semantic mappings must not silently change those entities.
+- Existing Fluvius demand-history behavior in `extensions.py` retains raw
+  timestamps for the `monthly_peak` attributes and tolerates malformed optional
+  history. Upstream also supports `BELGIUM_MAXIMUM_DEMAND_13_MONTHS`; treat a
+  move to upstream-only parsing as a separately tested behavior change, not a
+  dependency-only refactor. Never copy that legacy parser into the shared shim.
+- `validation.py` intentionally re-exports shared CRC/redaction functions for
+  existing local imports. Use explicit `from package import name as name`
+  aliases (or an equally lint-clean re-export) when preserving such interfaces.
+- When changing shared-package behavior, test against the published package
+  version declared in `manifest.json`; coordinate changes across repositories
+  rather than relying on unpublished shared APIs.
+
 ## DSMR and OBIS parsing
 
 - Parse by OBIS identifier, never by fixed line number or telegram position.
@@ -139,8 +166,8 @@ metadata rather than merely confirming that parsing did not raise an exception.
 - Keep changes focused on the issue or request being addressed.
 - Do not update the manifest version, create tags, publish releases, or modify
   release notes unless explicitly requested by the maintainer.
-- Do not add new dependencies when a small implementation or an existing project
-  dependency is sufficient.
+- Avoid introducing dependencies where upstream `dsmr-parser` or the existing
+  `p1-dsmr-common` package already supplies the required capability.
 - Preserve unrelated README and contributor changes when synchronizing branches.
 
 ## Before handing off a change
