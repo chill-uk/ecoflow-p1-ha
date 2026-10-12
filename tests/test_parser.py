@@ -93,8 +93,12 @@ class ParserTests(unittest.TestCase):
                 parsed = parser.parse_telegram(telegram)
                 self.assertEqual(len(parsed.demand_history), 1)
                 peak = parsed.demand_history[0]
-                self.assertEqual(\n                    peak.datetime.astimezone(local_zone).isoformat(), expected\n                )
-                self.assertEqual(\n                    peak.occurred.astimezone(local_zone).isoformat(), expected\n                )
+                self.assertEqual(
+                    peak.datetime.astimezone(local_zone).isoformat(), expected
+                )
+                self.assertEqual(
+                    peak.occurred.astimezone(local_zone).isoformat(), expected
+                )
                 self.assertEqual(parsed.decimal("1-0:1.7.0", "kW"), Decimal("0.123"))
 
     def test_malformed_optional_history_preserves_electricity(self) -> None:
