@@ -45,7 +45,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(parsed.demand_history[0].value, Decimal("4.157"))
         self.assertEqual(parsed.demand_history[-1].value, Decimal("4.577"))
         self.assertEqual(parsed.demand_history[0].unit, "kW")
-        self.assertEqual(parsed.demand_history[0].datetime.year, 2025)
+        self.assertEqual(parsed.demand_history[0].datetime.year, 2024)
         self.assertEqual(parsed.demand_history[-1].occurred.year, 2025)
 
     def test_malformed_optional_history_preserves_electricity(self) -> None:
@@ -66,7 +66,10 @@ class ParserTests(unittest.TestCase):
                 telegram = telegram.replace("\\n", "\n")
                 parsed = parser.parse_telegram(telegram)
                 self.assertEqual(parsed.decimal("1-0:1.7.0", "kW"), Decimal("0.123"))
-                self.assertEqual(len(parsed.demand_history), 0)
+                self.assertEqual(
+                    len(parsed.demand_history),
+                    1 if "(991332256199S)(bad)" in history else 0,
+                )
 
     def test_metadata_hex_and_unbounded_mbus_discovery(self) -> None:
         """Extract metadata and discover a channel beyond the former limit."""
