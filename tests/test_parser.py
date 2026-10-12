@@ -1,7 +1,9 @@
 """Tests for DSMR parsing."""
 
 import unittest
+from datetime import datetime, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from .helpers import ROOT, load_module
 
@@ -39,14 +41,61 @@ class ParserTests(unittest.TestCase):
     """Verify tolerant, identifier-based parsing."""
 
     def test_demand_history_uses_upstream_objects(self) -> None:
-        """Use native Fluvius peak records, not raw-string duplicates."""
+        """All 13 records have the expected timestamp, value, and unit."""
         parsed = parser.parse_telegram(DEMAND_TELEGRAM)
         self.assertEqual(len(parsed.demand_history), 13)
-        self.assertEqual(parsed.demand_history[0].value, Decimal("4.157"))
-        self.assertEqual(parsed.demand_history[-1].value, Decimal("4.577"))
-        self.assertEqual(parsed.demand_history[0].unit, "kW")
-        self.assertEqual(parsed.demand_history[0].datetime.year, 2024)
-        self.assertEqual(parsed.demand_history[-1].occurred.year, 2025)
+        local_zone = ZoneInfo("Europe/Brussels")
+        for index, peak in enumerate(parsed.demand_history):
+            with self.subTest(index=index):
+                period_year = 2025 if index < 12 else 2026
+                period_month = index + 1 if index < 12 else 1
+                expected_period = datetime(
+                    period_year, period_month, 1, tzinfo=local_zone
+                )
+                self.assertEqual(peak.datetime, expected_period.astimezone(timezone.utc))
+                self.assertEqual(peak.unit, "kW")
+                self.assertEqual(
+                    peak.value,
+                    Decimal("4.577" if index == 12 else "4.157"),
+                )
+                self.assertIsNotNone(peak.occurred)
+                self.assertEqual(peak.occurred.tzinfo, timezone.utc)
+
+        self.assertEqual(
+            parsed.demand_history[0].occurred,
+            datetime(2024, 12, 29, 9, tzinfo=timezone.utc),
+        )
+        self.assertEqual(
+            parsed.demand_history[-1].occurred,
+            datetime(2025, 12, 29, 9, tzinfo=timezone.utc),
+        )
+
+    def test_demand_history_dst_offsets(self) -> None:
+        """The upstream timestamps round-trip to the correct Belgian offsets."""
+        local_zone = ZoneInfo("Europe/Brussels")
+        fixtures = (
+            ("250301000000W", "2025-03-01T00:00:00+01:00"),
+            ("250401000000S", "2025-04-01T00:00:00+02:00"),
+            ("251001000000S", "2025-10-01T00:00:00+02:00"),
+            ("251101000000W", "2025-11-01T00:00:00+01:00"),
+        )
+        for raw, expected in fixtures:
+            with self.subTest(raw=raw):
+                history = (
+                    "0-0:98.1.0(1)(1-0:1.6.0)(1-0:1.6.0)"
+                    f"({raw})({raw})(04.157*kW)"
+                )
+                telegram = (
+                    "/FLU5\\\\SYNTHETIC\\n1-0:1.7.0(00.123*kW)\\n"
+                    + history
+                    + "\\n!"
+                )
+                parsed = parser.parse_telegram(telegram)
+                self.assertEqual(len(parsed.demand_history), 1)
+                peak = parsed.demand_history[0]
+                self.assertEqual(\n                    peak.datetime.astimezone(local_zone).isoformat(), expected\n                )
+                self.assertEqual(\n                    peak.occurred.astimezone(local_zone).isoformat(), expected\n                )
+                self.assertEqual(parsed.decimal("1-0:1.7.0", "kW"), Decimal("0.123"))
 
     def test_malformed_optional_history_preserves_electricity(self) -> None:
         """A malformed optional profile must not prevent valid electricity updates."""
