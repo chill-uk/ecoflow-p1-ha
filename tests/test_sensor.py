@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 from decimal import Decimal
 from types import ModuleType, SimpleNamespace
 
-from .helpers import INTEGRATION, load_module
+from .helpers import INTEGRATION, ROOT, load_module
 
 
 def _install_sensor_stubs() -> None:
@@ -252,6 +252,58 @@ class SensorTests(unittest.TestCase):
         self.assertEqual(
             entity.extra_state_attributes, {"history_count": 0, "peaks": []}
         )
+
+    def test_full_fluvius_history_sensor_attributes(self) -> None:
+        """Expose all 13 peaks in local time without raw timestamp attributes."""
+        parser = load_module("custom_components.ecoflow_p1.parser")
+        telegram = parser.parse_telegram(
+            (ROOT / "tests/fixtures/fluvius_demand_synthetic.txt").read_text()
+        )
+        data = replace(_data_with_channel(models.MBusChannel(1)), telegram=telegram)
+        description = next(
+            item for item in sensor.SENSOR_DESCRIPTIONS if item.key == "monthly_peak"
+        )
+        entity = sensor.EcoFlowP1Sensor(
+            SimpleNamespace(data=data),
+            SimpleNamespace(unique_id="test", entry_id="entry"),
+            description,
+            "parent",
+        )
+        attributes = entity.extra_state_attributes
+        self.assertEqual(entity.native_value, Decimal("3600"))
+        self.assertEqual(attributes["peak_datetime"], "2026-01-02T20:00:00+01:00")
+        self.assertEqual(attributes["history_count"], 13)
+        self.assertEqual(len(attributes["peaks"]), 13)
+        self.assertEqual(
+            attributes["peaks"][0],
+            {
+                "period_datetime": "2025-01-01T00:00:00+01:00",
+                "peak_datetime": "2024-12-29T10:00:00+01:00",
+                "peak_kw": 4.157,
+            },
+        )
+        self.assertEqual(
+            attributes["peaks"][3]["period_datetime"],
+            "2025-04-01T00:00:00+02:00",
+        )
+        self.assertEqual(
+            attributes["peaks"][10]["period_datetime"],
+            "2025-11-01T00:00:00+01:00",
+        )
+        self.assertEqual(
+            attributes["peaks"][-1],
+            {
+                "period_datetime": "2026-01-01T00:00:00+01:00",
+                "peak_datetime": "2025-12-29T10:00:00+01:00",
+                "peak_kw": 4.577,
+            },
+        )
+        self.assertNotIn("peak_timestamp", attributes)
+        for peak in attributes["peaks"]:
+            self.assertEqual(
+                set(peak), {"period_datetime", "peak_datetime", "peak_kw"}
+            )
+        json.dumps(attributes, allow_nan=False)
 
     def test_demand_rejects_invalid_readings(self) -> None:
         """Missing, malformed and wrong-unit values do not become sensor states."""
