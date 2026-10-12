@@ -1,7 +1,7 @@
 """Tests for DSMR parsing."""
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -52,22 +52,24 @@ class ParserTests(unittest.TestCase):
                 expected_period = datetime(
                     period_year, period_month, 1, tzinfo=local_zone
                 )
-                self.assertEqual(peak.datetime, expected_period.astimezone(timezone.utc))
+                self.assertEqual(
+                    peak.datetime, expected_period.astimezone(UTC)
+                )
                 self.assertEqual(peak.unit, "kW")
                 self.assertEqual(
                     peak.value,
                     Decimal("4.577" if index == 12 else "4.157"),
                 )
                 self.assertIsNotNone(peak.occurred)
-                self.assertEqual(peak.occurred.tzinfo, timezone.utc)
+                self.assertEqual(peak.occurred.tzinfo, UTC)
 
         self.assertEqual(
             parsed.demand_history[0].occurred,
-            datetime(2024, 12, 29, 9, tzinfo=timezone.utc),
+            datetime(2024, 12, 29, 9, tzinfo=UTC),
         )
         self.assertEqual(
             parsed.demand_history[-1].occurred,
-            datetime(2025, 12, 29, 9, tzinfo=timezone.utc),
+            datetime(2025, 12, 29, 9, tzinfo=UTC),
         )
 
     def test_demand_history_dst_offsets(self) -> None:
