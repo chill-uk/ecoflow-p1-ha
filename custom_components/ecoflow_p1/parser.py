@@ -107,7 +107,9 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
         if "0-0:98.1.0(" not in safe_telegram:
             raise InvalidTelegramError("Unable to parse DSMR telegram") from err
         try:
-            parsed = dsmr_parser.parse(_parser_safe_telegram(telegram, omit_history=True))
+            parsed = dsmr_parser.parse(
+                _parser_safe_telegram(telegram, omit_history=True)
+            )
         except (ParseError, ValueError, IndexError, TypeError) as retry_err:
             raise InvalidTelegramError("Unable to parse DSMR telegram") from retry_err
 
@@ -127,7 +129,9 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
         obis=obis_values,
         demand_history=tuple(
             peak
-            for peak in (getattr(parsed, "BELGIUM_MAXIMUM_DEMAND_13_MONTHS", None) or ())
+            for peak in (
+                getattr(parsed, "BELGIUM_MAXIMUM_DEMAND_13_MONTHS", None) or ()
+            )
             if peak.unit == "kW"
             and isinstance(peak.value, Decimal)
             and peak.value.is_finite()
