@@ -13,5 +13,5 @@
     "PyNaCl>=1.6.2",
     "dsmr-parser>=1.11.1"
   ],
-  "version": "0.3.0"
+  "version": "0.4.0-beta.1"
 }
