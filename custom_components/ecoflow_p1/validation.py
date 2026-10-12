@@ -7,8 +7,10 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Final
 
-from p1_dsmr_common.crc import CrcResult, calculate_crc, validate_crc
-from p1_dsmr_common.redaction import redact_equipment_ids
+from p1_dsmr_common.crc import CrcResult as CrcResult
+from p1_dsmr_common.crc import calculate_crc as calculate_crc
+from p1_dsmr_common.crc import validate_crc as validate_crc
+from p1_dsmr_common.redaction import redact_equipment_ids as redact_equipment_ids
 
 _OBIS_PREFIX = re.compile(r"^(\d+-\d+:\d+\.\d+\.\d+)")
 _OBIS_LINE = re.compile(
