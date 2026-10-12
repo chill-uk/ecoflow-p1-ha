@@ -45,9 +45,18 @@ _READING_IDENTIFIERS = frozenset(
 _PRINTABLE = frozenset(string.printable) - frozenset("\r\n\t\x0b\x0c")
 
 _PARSERS = {
-    "3": TelegramParser(extended_spec(telegram_specifications.V3), apply_checksum_validation=False),
-    "4": TelegramParser(extended_spec(telegram_specifications.V4), apply_checksum_validation=False),
-    "5": TelegramParser(extended_spec(telegram_specifications.V5), apply_checksum_validation=False),
+    "3": TelegramParser(
+        extended_spec(telegram_specifications.V3),
+        apply_checksum_validation=False,
+    ),
+    "4": TelegramParser(
+        extended_spec(telegram_specifications.V4),
+        apply_checksum_validation=False,
+    ),
+    "5": TelegramParser(
+        extended_spec(telegram_specifications.V5),
+        apply_checksum_validation=False,
+    ),
 }
 _FLUVIUS_PARSER = TelegramParser(
     telegram_specifications.BELGIUM_FLUVIUS,
