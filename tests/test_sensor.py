@@ -300,9 +300,7 @@ class SensorTests(unittest.TestCase):
         )
         self.assertNotIn("peak_timestamp", attributes)
         for peak in attributes["peaks"]:
-            self.assertEqual(
-                set(peak), {"period_datetime", "peak_datetime", "peak_kw"}
-            )
+            self.assertEqual(set(peak), {"period_datetime", "peak_datetime", "peak_kw"})
         json.dumps(attributes, allow_nan=False)
 
     def test_demand_rejects_invalid_readings(self) -> None:
