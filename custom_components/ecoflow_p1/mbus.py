@@ -1,50 +1,25 @@
-"""M-Bus classification helpers."""
+"""Compatibility wrappers for shared DSMR M-Bus helpers."""
 
 from __future__ import annotations
 
-from typing import Final, Literal
+from p1_dsmr_common.mbus import (
+    MbusMeasurementKind,
+    classify_mbus_measurement,
+    mbus_device_type_name,
+)
 
 from .models import MBusChannel
 
-MBusKind = Literal["gas", "water", "energy"]
-
-_ENERGY_UNITS: Final = {"j", "kj", "mj", "gj", "wh", "kwh", "mwh"}
-_METER_TYPE_NAMES: Final = {
-    0: "Other",
-    1: "Oil meter",
-    2: "Electricity meter",
-    3: "Gas meter",
-    4: "Heat meter",
-    5: "Steam meter",
-    6: "Hot water meter",
-    7: "Water meter",
-    8: "Heat cost allocator",
-    9: "Compressed air",
-    10: "Cooling load meter (outlet)",
-    11: "Cooling load meter (inlet)",
-    12: "Heat (inlet)",
-    13: "Heat/cooling",
-    14: "Bus/system",
-    15: "Unknown",
-}
+MBusKind = MbusMeasurementKind
 
 
 def classify_mbus_channel(channel: MBusChannel) -> MBusKind | None:
-    """Classify a channel using its unit and DSMR M-Bus device type."""
-    unit = channel.unit.casefold() if channel.unit else None
-    if unit in _ENERGY_UNITS:
-        return "energy"
-    if unit != "m3":
-        return None
-    if channel.device_type == 3:
-        return "gas"
-    if channel.device_type in (6, 7):
-        return "water"
-    return None
+    """Classify a channel using shared DSMR M-Bus semantics."""
+    return classify_mbus_measurement(channel.device_type, channel.unit)
 
 
-def mbus_device_type_name(device_type: int | None) -> str | None:
-    """Return the standard M-Bus device type label."""
-    if device_type is None:
-        return None
-    return _METER_TYPE_NAMES.get(device_type, f"Type {device_type}")
+__all__ = [
+    "MBusKind",
+    "classify_mbus_channel",
+    "mbus_device_type_name",
+]

@@ -10,6 +10,7 @@ from typing import Any
 from dsmr_parser import telegram_specifications
 from dsmr_parser.exceptions import ParseError
 from dsmr_parser.parsers import TelegramParser
+from p1_dsmr_common.extensions import extended_spec
 
 from .extensions import parse_demand_history
 from .models import (
@@ -44,9 +45,9 @@ _READING_IDENTIFIERS = frozenset(
 _PRINTABLE = frozenset(string.printable) - frozenset("\r\n\t\x0b\x0c")
 
 _PARSERS = {
-    "3": TelegramParser(telegram_specifications.V3, apply_checksum_validation=False),
-    "4": TelegramParser(telegram_specifications.V4, apply_checksum_validation=False),
-    "5": TelegramParser(telegram_specifications.V5, apply_checksum_validation=False),
+    "3": TelegramParser(extended_spec(telegram_specifications.V3), apply_checksum_validation=False),
+    "4": TelegramParser(extended_spec(telegram_specifications.V4), apply_checksum_validation=False),
+    "5": TelegramParser(extended_spec(telegram_specifications.V5), apply_checksum_validation=False),
 }
 _FLUVIUS_PARSER = TelegramParser(
     telegram_specifications.BELGIUM_FLUVIUS,

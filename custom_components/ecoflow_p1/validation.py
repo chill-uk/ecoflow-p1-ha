@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Final
 
-_CRC = re.compile(r"!([0-9A-Fa-f]{4})(?:\r?\n)?$")
+from p1_dsmr_common.crc import CrcResult, calculate_crc, validate_crc
+from p1_dsmr_common.redaction import redact_equipment_ids
+
 _OBIS_PREFIX = re.compile(r"^(\d+-\d+:\d+\.\d+\.\d+)")
 _OBIS_LINE = re.compile(
     r"^(?P<identifier>\d+-\d+:\d+\.\d+\.\d+)"
@@ -15,17 +17,6 @@ _OBIS_LINE = re.compile(
 )
 _GROUP = re.compile(r"\(([^()]*)\)")
 _TIMESTAMP = re.compile(r"^\d{12}[SW]$")
-_EQUIPMENT_ID = re.compile(r"^(0-\d+:96\.1\.[01])\([^()]*\)\r?$", re.MULTILINE)
-
-
-@dataclass(frozen=True, slots=True)
-class CrcResult:
-    """Result of validating a telegram's reported CRC."""
-
-    reported: str | None
-    calculated: str | None
-    valid: bool
-    error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,35 +74,6 @@ _PHASE_RULES: Final[dict[int, dict[str, ObisRule]]] = {
 }
 
 
-def calculate_crc(data: bytes) -> int:
-    """Calculate the CRC-16/ARC used by DSMR telegrams."""
-    crc = 0x0000
-    for byte in data:
-        crc ^= byte
-        for _ in range(8):
-            crc = (crc >> 1) ^ 0xA001 if crc & 1 else crc >> 1
-    return crc
-
-
-def validate_crc(telegram: str) -> CrcResult:
-    """Validate the CRC without normalising the telegram in any way."""
-    match = _CRC.search(telegram)
-    if match is None:
-        return CrcResult(None, None, False, "missing or malformed CRC")
-    try:
-        payload = telegram[: match.start() + 1].encode("ascii")
-    except UnicodeEncodeError:
-        return CrcResult(match.group(1).upper(), None, False, "non-ASCII telegram")
-    reported = match.group(1).upper()
-    calculated = f"{calculate_crc(payload):04X}"
-    return CrcResult(
-        reported,
-        calculated,
-        reported == calculated,
-        None if reported == calculated else "CRC mismatch",
-    )
-
-
 def required_obis_rules(phase_mode: str) -> dict[str, ObisRule]:
     """Return required continuous fields for the configured meter phases."""
     rules = {**_COMMON_RULES, **_PHASE_RULES[1]}
@@ -150,11 +112,6 @@ def validate_required_obis(telegram: str, phase_mode: str) -> TelegramValidation
             invalid[identifier] = error
 
     return TelegramValidation(tuple(missing), invalid)
-
-
-def redact_equipment_ids(telegram: str) -> str:
-    """Redact electricity and M-Bus equipment IDs before logging."""
-    return _EQUIPMENT_ID.sub(r"\1(<redacted>)", telegram)
 
 
 def _validate_groups(groups: tuple[str, ...], rule: ObisRule) -> str | None:
