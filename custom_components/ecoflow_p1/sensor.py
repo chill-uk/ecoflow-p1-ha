@@ -426,16 +426,17 @@ class EcoFlowP1Sensor(CoordinatorEntity[EcoFlowP1Coordinator], SensorEntity):
                 telegram = self.coordinator.data.telegram
                 peak = telegram.obis.get("1-0:1.6.0")
                 if peak is not None and len(peak.values) == 2:
-                    attributes["peak_timestamp"] = peak.values[0]
                     attributes["peak_datetime"] = _datetime_attribute(peak.values[0])
                 attributes["history_count"] = len(telegram.demand_history)
                 attributes["peaks"] = [
                     {
-                        "period_timestamp": record.period_timestamp,
-                        "peak_timestamp": record.peak_timestamp,
-                        "period_datetime": _datetime_attribute(record.period_timestamp),
-                        "peak_datetime": _datetime_attribute(record.peak_timestamp),
-                        "peak_kw": float(record.peak_kw),
+                        "period_datetime": record.datetime.isoformat()
+                        if record.datetime is not None
+                        else None,
+                        "peak_datetime": record.occurred.isoformat()
+                        if record.occurred is not None
+                        else None,
+                        "peak_kw": float(record.value),
                     }
                     for record in telegram.demand_history
                 ]

@@ -218,20 +218,15 @@ class SensorTests(unittest.TestCase):
         self.assertEqual(
             entity.extra_state_attributes,
             {
-                "peak_timestamp": "260902200000S",
                 "peak_datetime": "2026-09-02T20:00:00+02:00",
                 "history_count": 2,
                 "peaks": [
                     {
-                        "period_timestamp": "250901000000S",
-                        "peak_timestamp": "250831100000S",
                         "period_datetime": "2025-09-01T00:00:00+02:00",
                         "peak_datetime": "2025-08-31T10:00:00+02:00",
                         "peak_kw": 4.157,
                     },
                     {
-                        "period_timestamp": "251001000000S",
-                        "peak_timestamp": "250905213000S",
                         "period_datetime": "2025-10-01T00:00:00+02:00",
                         "peak_datetime": "2025-09-05T21:30:00+02:00",
                         "peak_kw": 4.577,
@@ -243,17 +238,13 @@ class SensorTests(unittest.TestCase):
         invalid_telegram = replace(
             telegram,
             obis={"1-0:1.6.0": models.ObisValue(("000000000000W", "03.600*kW"))},
-            demand_history=(models.DemandPeak("", "991332256199S", Decimal("4.157")),),
+            demand_history=(),
         )
         entity.coordinator.data = replace(data, telegram=invalid_telegram)
         attributes = entity.extra_state_attributes
         self.assertEqual(entity.native_value, Decimal("3600"))
         self.assertIsNone(attributes["peak_datetime"])
-        self.assertEqual(attributes["peak_timestamp"], "000000000000W")
-        self.assertEqual(attributes["history_count"], 1)
-        self.assertIsNone(attributes["peaks"][0]["period_datetime"])
-        self.assertIsNone(attributes["peaks"][0]["peak_datetime"])
-        self.assertEqual(attributes["peaks"][0]["peak_kw"], 4.157)
+        self.assertEqual(attributes["history_count"], 0)
         json.dumps(attributes, allow_nan=False)
         entity.coordinator.data = _data_with_channel(models.MBusChannel(1))
         self.assertIsNone(entity.native_value)

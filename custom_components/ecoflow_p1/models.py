@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
+from dsmr_parser.objects import MBusObjectPeak
+
 
 @dataclass(frozen=True, slots=True)
 class ObisValue:
@@ -52,22 +54,13 @@ class MeterInfo:
 
 
 @dataclass(frozen=True, slots=True)
-class DemandPeak:
-    """One monthly demand record, retaining DSMR local timestamps verbatim."""
-
-    period_timestamp: str
-    peak_timestamp: str
-    peak_kw: Decimal
-
-
-@dataclass(frozen=True, slots=True)
 class ParsedTelegram:
     """A parsed DSMR telegram."""
 
     header: str
     obis: dict[str, ObisValue]
     meter_info: MeterInfo
-    demand_history: tuple[DemandPeak, ...] = ()
+    demand_history: tuple[MBusObjectPeak, ...] = ()
 
     def decimal(
         self, identifier: str, expected_unit: str | None = None
