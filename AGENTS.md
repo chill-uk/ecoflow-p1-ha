@@ -115,11 +115,11 @@ return (
   `GLOBAL_MAPPING` defaults. Keep presentation/translation names local.
 - Retain the raw OBIS map because released EcoFlow entities depend on OBIS keys;
   shared semantic mappings must not silently change those entities.
-- Existing Fluvius demand-history behavior in `extensions.py` retains raw
-  timestamps for the `monthly_peak` attributes and tolerates malformed optional
-  history. Upstream also supports `BELGIUM_MAXIMUM_DEMAND_13_MONTHS`; treat a
-  move to upstream-only parsing as a separately tested behavior change, not a
-  dependency-only refactor. Never copy that legacy parser into the shared shim.
+- Fluvius demand history (`BELGIUM_MAXIMUM_DEMAND_13_MONTHS`) is parsed by
+  upstream `dsmr-parser`. EcoFlow exposes only formatted ISO datetimes and
+  peak values; raw demand-history timestamps are not sensor attributes.
+  Malformed optional history must not break valid electricity measurements.
+  Do not add a duplicate Fluvius parser to this repository or the shared shim.
 - `validation.py` intentionally re-exports shared CRC/redaction functions for
   existing local imports. Use explicit `from package import name as name`
   aliases (or an equally lint-clean re-export) when preserving such interfaces.

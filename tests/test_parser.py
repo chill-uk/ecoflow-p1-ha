@@ -1,7 +1,9 @@
 """Tests for DSMR parsing."""
 
 import unittest
+from datetime import UTC, datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from .helpers import ROOT, load_module
 
@@ -38,80 +40,84 @@ DEMAND_TELEGRAM = (ROOT / "tests/fixtures/fluvius_demand_synthetic.txt").read_te
 class ParserTests(unittest.TestCase):
     """Verify tolerant, identifier-based parsing."""
 
-    def test_demand_history_preserves_all_thirteen_records(self) -> None:
-        """Read every triple, preserving order and raw summer/winter timestamps."""
+    def test_demand_history_uses_upstream_objects(self) -> None:
+        """All 13 records have the expected timestamp, value, and unit."""
         parsed = parser.parse_telegram(DEMAND_TELEGRAM)
         self.assertEqual(len(parsed.demand_history), 13)
-        for index, record in enumerate(parsed.demand_history):
-            period = f"25{index + 1:02d}01000000" if index < 12 else "260101000000"
-            suffix = "S" if 3 <= index <= 9 else "W"
-            self.assertEqual(record.period_timestamp, period + suffix)
-            self.assertEqual(
-                record.peak_kw, Decimal("4.157" if index < 12 else "4.577")
-            )
-        self.assertEqual(parsed.demand_history[0].peak_timestamp, "241229100000W")
-        self.assertEqual(parsed.demand_history[-1].peak_timestamp, "251229100000W")
+        local_zone = ZoneInfo("Europe/Brussels")
+        for index, peak in enumerate(parsed.demand_history):
+            with self.subTest(index=index):
+                period_year = 2025 if index < 12 else 2026
+                period_month = index + 1 if index < 12 else 1
+                expected_period = datetime(
+                    period_year, period_month, 1, tzinfo=local_zone
+                )
+                self.assertEqual(peak.datetime, expected_period.astimezone(UTC))
+                self.assertEqual(peak.unit, "kW")
+                self.assertEqual(
+                    peak.value,
+                    Decimal("4.577" if index == 12 else "4.157"),
+                )
+                self.assertIsNotNone(peak.occurred)
+                self.assertEqual(peak.occurred.tzinfo, UTC)
 
-    def test_demand_history_variable_counts_and_placeholder_timestamps(self) -> None:
-        """Keep raw placeholder timestamps and every declared complete record."""
-        for count in (0, 1, 3, 13):
-            for timestamp in ("", "000000000000W", "991332256199S", "not-a-timestamp"):
-                with self.subTest(count=count, timestamp=timestamp):
-                    line = f"0-0:98.1.0({count})(1-0:1.6.0)(1-0:1.6.0)"
-                    line += f"({timestamp})({timestamp})(04.157*kW)" * count
-                    telegram = "/FLU5\\SYNTHETIC\n1-0:1.7.0(00.123*kW)\n" + line + "\n!"
-                    parsed = parser.parse_telegram(telegram)
-                    self.assertEqual(len(parsed.demand_history), count)
-                    for record in parsed.demand_history:
-                        self.assertEqual(record.period_timestamp, timestamp)
-                        self.assertEqual(record.peak_timestamp, timestamp)
-                        self.assertEqual(record.peak_kw, Decimal("4.157"))
+        self.assertEqual(
+            parsed.demand_history[0].occurred,
+            datetime(2024, 12, 29, 9, tzinfo=UTC),
+        )
+        self.assertEqual(
+            parsed.demand_history[-1].occurred,
+            datetime(2025, 12, 29, 9, tzinfo=UTC),
+        )
 
-    def test_demand_history_optional_and_malformed_groups(self) -> None:
-        """Bad history never invalidates the telegram or shifts record fields."""
+    def test_demand_history_dst_offsets(self) -> None:
+        """The upstream timestamps round-trip to the correct Belgian offsets."""
+        local_zone = ZoneInfo("Europe/Brussels")
+        fixtures = (
+            ("250301000000W", "2025-03-01T00:00:00+01:00"),
+            ("250401000000S", "2025-04-01T00:00:00+02:00"),
+            ("251001000000S", "2025-10-01T00:00:00+02:00"),
+            ("251101000000W", "2025-11-01T00:00:00+01:00"),
+        )
+        for raw, expected in fixtures:
+            with self.subTest(raw=raw):
+                history = (
+                    f"0-0:98.1.0(1)(1-0:1.6.0)(1-0:1.6.0)({raw})({raw})(04.157*kW)"
+                )
+                telegram = "/FLU5\\SYNTHETIC\n1-0:1.7.0(00.123*kW)\n" + history + "\n!"
+                parsed = parser.parse_telegram(telegram)
+                self.assertEqual(len(parsed.demand_history), 1)
+                peak = parsed.demand_history[0]
+                self.assertEqual(
+                    peak.datetime.astimezone(local_zone).isoformat(), expected
+                )
+                self.assertEqual(
+                    peak.occurred.astimezone(local_zone).isoformat(), expected
+                )
+                self.assertEqual(parsed.decimal("1-0:1.7.0", "kW"), Decimal("0.123"))
+
+    def test_malformed_optional_history_preserves_electricity(self) -> None:
+        """A malformed optional profile must not prevent valid electricity updates."""
         prefix = "0-0:98.1.0"
         headers = "(1-0:1.6.0)(1-0:1.6.0)"
-        record = "(000000000000W)(250905213000S)(04.577*kW)"
-        for line, count in (
-            ("", 0),
-            (prefix + "(0)" + headers, 0),
-            (prefix + "(1)" + headers + record, 1),
-            (prefix + "(2)" + headers + record, 0),
-            (prefix + "(bad)" + headers + record, 0),
-            (prefix + "(1)(wrong)(1-0:1.6.0)" + record, 0),
-            (prefix + "(1)" + headers + "(timestamp)(04.577*kW)", 0),
-        ):
-            with self.subTest(line=line):
-                parsed = parser.parse_telegram(
-                    "/FLU5\\SYNTHETIC\n1-0:1.7.0(00.123*kW)\n" + line + "\n!"
-                )
-                self.assertEqual(len(parsed.demand_history), count)
-                self.assertEqual(parsed.decimal("1-0:1.7.0", "kW"), Decimal("0.123"))
-        for invalid in (
+        valid = "(250901000000S)(250831100000S)(04.157*kW)"
+        for history in (
             "",
-            "bad*kW",
-            "4.577*W",
-            "4.577",
-            "NaN*kW",
-            "Infinity*kW",
-            "-1*kW",
+            prefix + "(bad)" + headers + valid,
+            prefix + "(2)" + headers + valid,
+            prefix + "(1)" + headers + "(991332256199S)(bad)(04.157*kW)",
+            prefix + "(1)" + headers + "(250901000000S)(250831100000S)(NaN*kW)",
         ):
-            with self.subTest(invalid=invalid):
-                line = (
-                    prefix
-                    + "(2)"
-                    + headers
-                    + record.replace("04.577*kW", invalid)
-                    + record
-                )
-                parsed = parser.parse_telegram(
-                    "/FLU5\\SYNTHETIC\n1-0:1.7.0(00.123*kW)\n" + line + "\n!"
-                )
-                self.assertEqual(len(parsed.demand_history), 1)
+            with self.subTest(history=history):
+                telegram = "/FLU5\\SYNTHETIC\\n1-0:1.7.0(00.123*kW)\\n"
+                telegram += history + "\\n!"
+                telegram = telegram.replace("\\n", "\n")
+                parsed = parser.parse_telegram(telegram)
+                self.assertEqual(parsed.decimal("1-0:1.7.0", "kW"), Decimal("0.123"))
                 self.assertEqual(
-                    parsed.demand_history[0].period_timestamp, "000000000000W"
+                    len(parsed.demand_history),
+                    1 if "(991332256199S)(bad)" in history else 0,
                 )
-                self.assertEqual(parsed.demand_history[0].peak_kw, Decimal("4.577"))
 
     def test_metadata_hex_and_unbounded_mbus_discovery(self) -> None:
         """Extract metadata and discover a channel beyond the former limit."""

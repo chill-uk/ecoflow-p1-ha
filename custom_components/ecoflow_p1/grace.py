@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from typing import cast
 
 from .models import EcoFlowP1Data, MBusChannel, MeterInfo, ObisValue, ParsedTelegram
-from .parser import parse_demand_history
 
 
 def is_within_grace(
@@ -54,6 +53,7 @@ class EcoFlowP1DataGrace:
         """Initialize independent caches for readings and metadata."""
         self._obis = ExpiringMap[str, ObisValue](grace_seconds)
         self._mbus = ExpiringMap[int, MBusChannel](grace_seconds)
+        self._history = ExpiringMap[str, tuple](grace_seconds)
         self._metadata = ExpiringMap[str, object](grace_seconds)
 
     def update(
@@ -100,6 +100,12 @@ class EcoFlowP1DataGrace:
             now,
         )
 
+        history = self._history.update(
+            {"peaks": incoming.telegram.demand_history}
+            if incoming.telegram.demand_history
+            else {},
+            now,
+        ).get("peaks", ())
         meter_info = MeterInfo(
             manufacturer=cast(str | None, metadata.get("manufacturer")),
             model=cast(str | None, metadata.get("model")),
@@ -113,7 +119,7 @@ class EcoFlowP1DataGrace:
         telegram = ParsedTelegram(
             header=incoming.telegram.header,
             obis=obis,
-            demand_history=parse_demand_history(obis.get("0-0:98.1.0")),
+            demand_history=history,
             meter_info=meter_info,
         )
         return EcoFlowP1Data(

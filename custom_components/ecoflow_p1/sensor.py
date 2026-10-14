@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -34,6 +35,8 @@ from .const import DOMAIN, PHASE_MODE_THREE
 from .coordinator import EcoFlowP1Coordinator
 from .mbus import classify_mbus_channel, mbus_device_type_name
 from .models import EcoFlowP1Data, MBusChannel, parse_dsmr_datetime
+
+_FLUVIUS_TIMEZONE = ZoneInfo("Europe/Brussels")
 
 DeviceGroup = Literal["dongle", "electricity", "mbus"]
 
@@ -426,16 +429,21 @@ class EcoFlowP1Sensor(CoordinatorEntity[EcoFlowP1Coordinator], SensorEntity):
                 telegram = self.coordinator.data.telegram
                 peak = telegram.obis.get("1-0:1.6.0")
                 if peak is not None and len(peak.values) == 2:
-                    attributes["peak_timestamp"] = peak.values[0]
                     attributes["peak_datetime"] = _datetime_attribute(peak.values[0])
                 attributes["history_count"] = len(telegram.demand_history)
                 attributes["peaks"] = [
                     {
-                        "period_timestamp": record.period_timestamp,
-                        "peak_timestamp": record.peak_timestamp,
-                        "period_datetime": _datetime_attribute(record.period_timestamp),
-                        "peak_datetime": _datetime_attribute(record.peak_timestamp),
-                        "peak_kw": float(record.peak_kw),
+                        "period_datetime": record.datetime.astimezone(
+                            _FLUVIUS_TIMEZONE
+                        ).isoformat()
+                        if record.datetime is not None
+                        else None,
+                        "peak_datetime": record.occurred.astimezone(
+                            _FLUVIUS_TIMEZONE
+                        ).isoformat()
+                        if record.occurred is not None
+                        else None,
+                        "peak_kw": float(record.value),
                     }
                     for record in telegram.demand_history
                 ]

@@ -12,7 +12,6 @@ from dsmr_parser.exceptions import ParseError
 from dsmr_parser.parsers import TelegramParser
 from p1_dsmr_common.extensions import extended_spec
 
-from .extensions import parse_demand_history
 from .models import (
     MBusChannel,
     MeterInfo,
@@ -98,12 +97,21 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
     lines = [line.strip() for line in telegram.splitlines() if line.strip()]
     obis_values = _raw_obis_values(lines)
 
+    dsmr_parser = _select_parser(lines[0], obis_values)
+    safe_telegram = _parser_safe_telegram(telegram)
     try:
-        parsed = _select_parser(lines[0], obis_values).parse(
-            _parser_safe_telegram(telegram)
-        )
-    except ParseError as err:
-        raise InvalidTelegramError("Unable to parse DSMR telegram") from err
+        parsed = dsmr_parser.parse(safe_telegram)
+    except (ParseError, ValueError, IndexError, TypeError) as err:
+        # A malformed optional Fluvius history must not discard valid electricity
+        # readings. Retry once without only that optional OBIS field.
+        if "0-0:98.1.0(" not in safe_telegram:
+            raise InvalidTelegramError("Unable to parse DSMR telegram") from err
+        try:
+            parsed = dsmr_parser.parse(
+                _parser_safe_telegram(telegram, omit_history=True)
+            )
+        except (ParseError, ValueError, IndexError, TypeError) as retry_err:
+            raise InvalidTelegramError("Unable to parse DSMR telegram") from retry_err
 
     manufacturer, model = _parse_header(lines[0])
     equipment = getattr(parsed, "EQUIPMENT_IDENTIFIER", None)
@@ -119,7 +127,16 @@ def parse_telegram(telegram: str) -> ParsedTelegram:
     return ParsedTelegram(
         header=lines[0],
         obis=obis_values,
-        demand_history=parse_demand_history(obis_values.get("0-0:98.1.0")),
+        demand_history=tuple(
+            peak
+            for peak in (
+                getattr(parsed, "BELGIUM_MAXIMUM_DEMAND_13_MONTHS", None) or ()
+            )
+            if peak.unit == "kW"
+            and isinstance(peak.value, Decimal)
+            and peak.value.is_finite()
+            and peak.value >= 0
+        ),
         meter_info=MeterInfo(
             manufacturer=manufacturer,
             model=model,
@@ -244,7 +261,7 @@ def _first_plain_value(values: dict[str, ObisValue], *identifiers: str) -> str |
     return None
 
 
-def _parser_safe_telegram(telegram: str) -> str:
+def _parser_safe_telegram(telegram: str, *, omit_history: bool = False) -> str:
     """Remove malformed optional extensions before invoking dsmr-parser.
 
     EcoFlow historically treats malformed optional fields as absent rather than
@@ -255,9 +272,8 @@ def _parser_safe_telegram(telegram: str) -> str:
     for line in telegram.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
         stripped = line.strip()
 
-        # Fluvius 13-month demand history is parsed separately so raw placeholder
-        # timestamps remain available and malformed history cannot shift records.
-        if stripped.startswith("0-0:98.1.0("):
+        # Retry without malformed optional history only if upstream parsing fails.
+        if omit_history and stripped.startswith("0-0:98.1.0("):
             continue
 
         match = _OBIS_LINE.fullmatch(stripped)

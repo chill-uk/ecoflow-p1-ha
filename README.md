@@ -63,17 +63,14 @@ their entity IDs are `sensor.electricity_meter_current_quarter_average` and
 `sensor.electricity_meter_monthly_peak` (Home Assistant may add a suffix if an ID
 is already in use).
 
-The monthly peak includes `peak_timestamp`, plus `history_count` and a `peaks`
-list from `0-0:98.1.0`. Every history record contains `period_timestamp`,
-`peak_timestamp`, and numeric `peak_kw`. All 13 records are preserved when
-provided by the meter; newer meters may provide fewer records. Timestamps remain
-raw DSMR local strings, including the summer/winter suffix. Alongside these,
-`peak_datetime` (on the sensor and each record) and `period_datetime` (on each
-record) expose ISO 8601 datetimes with explicit offsets: `+02:00` for summer
-and `+01:00` for winter. For example, `260902200000S` becomes
-`2026-09-02T20:00:00+02:00`. Invalid or empty timestamps produce `null` datetime
-attributes while preserving the raw timestamps and power values. Invalid history
-measurements are skipped, and `history_count` counts the valid records exposed.
+The monthly peak includes `peak_datetime`, plus `history_count` and a `peaks`
+list from Fluvius `0-0:98.1.0`. Each record has `period_datetime` (the
+reporting-period boundary), `peak_datetime` (when the maximum occurred), and
+numeric `peak_kw`. Datetimes use ISO 8601 with explicit timezone offsets.
+History parsing is delegated to upstream `dsmr-parser`. Malformed optional history
+does not invalidate otherwise valid electricity readings; if history parsing
+fails, the history list is empty for that telegram. Raw DSMR timestamp strings
+are no longer exposed as monthly-peak attributes.
 
 The history format follows the
 [Fluvius eMUCS-P1 specification](https://partner.fluvius.be/sites/fluvius/files/2025-09/digital-metering-system-emucs-p1-v2-1.pdf).
