@@ -19,9 +19,7 @@ It does **not** use the EcoFlow cloud API.
 
 > [!NOTE]
 > It looks like the Jackery and Anker Solix P1 meter readers use the same hardware.
-> I don't have either of them, but they might work. 
-> UPDATE: The jackery uses a completely different firmware and I've got the Solix meter on the way
-> Let me know and I can keep a compatibility matrix updated 
+> UPDATE: The jackery uses a completely different firmware and I've got the Solix meter on the way.
 
 # Installation
 
