@@ -11,6 +11,7 @@ from dsmr_parser import telegram_specifications
 from dsmr_parser.exceptions import ParseError
 from dsmr_parser.parsers import TelegramParser
 from p1_dsmr_common.extensions import extended_spec
+from p1_dsmr_common.mbus import get_mbus_field
 
 from .models import (
     MBusChannel,
@@ -189,9 +190,9 @@ def _parse_mbus_channels(parsed: Any, raw_telegram: str) -> dict[int, MBusChanne
 
     for device in devices:
         channel = int(device.channel_id)
-        device_type = getattr(device, "MBUS_DEVICE_TYPE", None)
-        equipment = getattr(device, "MBUS_EQUIPMENT_IDENTIFIER", None)
-        reading = getattr(device, "MBUS_METER_READING", None)
+        device_type = get_mbus_field(device, "MBUS_DEVICE_TYPE")
+        equipment = get_mbus_field(device, "MBUS_EQUIPMENT_IDENTIFIER")
+        reading = get_mbus_field(device, "MBUS_METER_READING")
 
         equipment_id = str(equipment.value) if equipment is not None else None
         delivered = reading.value if reading is not None else None
