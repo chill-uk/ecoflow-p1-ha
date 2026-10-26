@@ -23,6 +23,18 @@ TELEGRAM = """/ISK5\\2M550E-1011\r
 !6A72\r
 """
 
+# Synthetic DSMR 4.2 Kaifa-like telegram; never includes real identifiers.
+KAIFA_V4_TELEGRAM = """/KFM5KAIFA-METER\r
+\r
+1-3:0.2.8(42)\r
+1-0:1.8.1(000123.456*kWh)\r
+1-0:1.7.0(00.123*kW)\r
+0-1:24.1.0(003)\r
+0-1:96.1.0(3030303030303030303030303030303030)\r
+0-1:24.2.1(261026190000W)(12334.675*m3)\r
+!0000\r
+"""
+
 FLUVIUS_TELEGRAM = """/FLU5\\253770234_A\r
 1-0:1.8.1(000000.915*kWh)\r
 0-1:24.1.0(003)\r
@@ -39,6 +51,20 @@ DEMAND_TELEGRAM = (ROOT / "tests/fixtures/fluvius_demand_synthetic.txt").read_te
 
 class ParserTests(unittest.TestCase):
     """Verify tolerant, identifier-based parsing."""
+
+    def test_dsmr4_gas_uses_legacy_upstream_mbus_fields(self) -> None:
+        parsed = parser.parse_telegram(KAIFA_V4_TELEGRAM)
+        gas = parsed.meter_info.mbus_channels[1]
+        self.assertEqual(gas.device_type, 3)
+        self.assertEqual(gas.delivered, Decimal("12334.675"))
+        self.assertEqual(gas.unit, "m3")
+
+    def test_dsmr5_gas_preserves_existing_mbus_fields(self) -> None:
+        parsed = parser.parse_telegram(TELEGRAM)
+        gas = parsed.meter_info.mbus_channels[5]
+        self.assertEqual(gas.device_type, 3)
+        self.assertEqual(gas.delivered, Decimal("11118.375"))
+        self.assertEqual(gas.unit, "m3")
 
     def test_demand_history_uses_upstream_objects(self) -> None:
         """All 13 records have the expected timestamp, value, and unit."""
