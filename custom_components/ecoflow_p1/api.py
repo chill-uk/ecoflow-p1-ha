@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from aiohttp import ClientSession
@@ -50,7 +51,9 @@ class EcoFlowP1Api:
         """Return the configured host."""
         return self._client.host
 
-    async def async_get_data(self) -> EcoFlowP1Data:
+    async def async_get_data(
+        self, *, on_raw_telegram: Callable[[str], None] | None = None
+    ) -> EcoFlowP1Data:
         """Fetch and parse one response from /getdebugdata."""
         try:
             payload = await self._client.async_get_debug_payload()
@@ -62,6 +65,10 @@ class EcoFlowP1Api:
         telegram_raw = payload.get("debugdata")
         if not isinstance(telegram_raw, str):
             raise EcoFlowP1ResponseError("JSON response has no debugdata telegram")
+
+        # Capture the original HTTP debugdata before CRC validation or parsing.
+        if on_raw_telegram is not None:
+            on_raw_telegram(telegram_raw)
 
         crc = validate_crc(telegram_raw)
         if not crc.valid:
