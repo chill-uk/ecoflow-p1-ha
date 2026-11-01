@@ -46,8 +46,10 @@ class P1StatusBinarySensor(CoordinatorEntity[P1StatusCoordinator], BinarySensorE
 
     @property
     def available(self) -> bool:
-        return super().available and self.coordinator.data is not None and (
-            getattr(self.coordinator.data, self._key) is not None
+        return (
+            super().available
+            and self.coordinator.data is not None
+            and (getattr(self.coordinator.data, self._key) is not None)
         )
 
     @property
