@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib import import_module
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
@@ -37,6 +38,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcoFlowP1ConfigEntry) ->
     # Status failures never prevent the existing DSMR integration from loading.
     await status_coordinator.async_refresh()
     entry.runtime_data = EcoFlowP1RuntimeData(coordinator, status_coordinator)
+    # Import platform modules off the event loop before HA forwards setups.
+    # This avoids first-import filesystem I/O on the event-loop thread.
+    for platform in PLATFORMS:
+        await hass.async_add_executor_job(
+            import_module, f"{__package__}.{platform.value}"
+        )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
