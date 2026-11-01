@@ -43,7 +43,9 @@ class P1StatusCoordinator(DataUpdateCoordinator[P1DeviceStatus]):
 
     def __init__(self, hass: HomeAssistant, client: EcoFlowP1Client) -> None:
         super().__init__(
-            hass, _LOGGER, name="EcoFlow P1 device status",
+            hass,
+            _LOGGER,
+            name="EcoFlow P1 device status",
             update_interval=timedelta(seconds=60),
         )
         self.client = client
