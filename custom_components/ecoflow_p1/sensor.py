@@ -15,6 +15,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
+    CONNECTION_NETWORK_MAC,
     EntityCategory,
     Platform,
     UnitOfElectricCurrent,
@@ -220,6 +221,29 @@ async def async_setup_entry(
             for description in new
         )
 
+    async_add_entities(
+        [P1WifiRssiSensor(entry.runtime_data.status_coordinator, base_id)]
+    )
+
+    @callback
+    def sync_mac() -> None:
+        status = entry.runtime_data.status_coordinator.data
+        if status is None or status.mac is None:
+            return
+        registry = dr.async_get(hass)
+        device = registry.async_get_device(identifiers={(DOMAIN, base_id)})
+        if (
+            device is not None
+            and (CONNECTION_NETWORK_MAC, status.mac) not in device.connections
+        ):
+            registry.async_update_device(
+                device.id, add_connections={(CONNECTION_NETWORK_MAC, status.mac)}
+            )
+
+    sync_mac()
+    entry.async_on_unload(
+        entry.runtime_data.status_coordinator.async_add_listener(sync_mac)
+    )
     discover_entities()
     entry.async_on_unload(coordinator.async_add_listener(discover_entities))
 
@@ -504,6 +528,34 @@ def _device_info(
         name=(type_name or "M-Bus meter").title(),
         serial_number=channel.meter_serial if channel else None,
     )
+
+
+class P1WifiRssiSensor(CoordinatorEntity, SensorEntity):
+    """Signal strength reported by the local P1 Wi-Fi endpoint."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "wifi_signal_strength"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
+    _attr_native_unit_of_measurement = "dBm"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, base_id: str) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{base_id}_wifi_signal_strength"
+        self._attr_device_info = {"identifiers": {(DOMAIN, base_id)}}
+
+    @property
+    def available(self) -> bool:
+        return (
+            super().available
+            and self.coordinator.data is not None
+            and self.coordinator.data.wifi_rssi is not None
+        )
+
+    @property
+    def native_value(self) -> int | None:
+        return self.coordinator.data.wifi_rssi if self.coordinator.data else None
 
 
 def _dongle_device_info(coordinator: EcoFlowP1Coordinator, base_id: str) -> DeviceInfo:
