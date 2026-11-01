@@ -35,6 +35,7 @@ from .const import DOMAIN, PHASE_MODE_THREE
 from .coordinator import EcoFlowP1Coordinator
 from .mbus import classify_mbus_channel, mbus_device_type_name
 from .models import EcoFlowP1Data, MBusChannel, parse_dsmr_datetime
+from .status import P1DeviceStatus
 
 _FLUVIUS_TIMEZONE = ZoneInfo("Europe/Brussels")
 
@@ -200,7 +201,9 @@ async def async_setup_entry(
     base_id = entry.unique_id or entry.entry_id
     dongle_device = dr.async_get(hass).async_get_or_create(
         config_entry_id=entry.entry_id,
-        **_dongle_device_info(coordinator, base_id),
+        **_dongle_device_info(
+            coordinator, base_id, entry.runtime_data.status_coordinator.data
+        ),
     )
     _migrate_legacy_power_units(hass, base_id)
     _migrate_legacy_mbus_entities(hass, base_id, coordinator.data)
@@ -562,11 +565,18 @@ class P1WifiRssiSensor(CoordinatorEntity, SensorEntity):
         return self.coordinator.data.wifi_rssi if self.coordinator.data else None
 
 
-def _dongle_device_info(coordinator: EcoFlowP1Coordinator, base_id: str) -> DeviceInfo:
+def _dongle_device_info(
+    coordinator: EcoFlowP1Coordinator,
+    base_id: str,
+    status: P1DeviceStatus | None = None,
+) -> DeviceInfo:
     """Build device information for the physical EcoFlow dongle."""
     data = coordinator.data
     return DeviceInfo(
         identifiers={(DOMAIN, base_id)},
+        connections={(dr.CONNECTION_NETWORK_MAC, status.mac)}
+        if status is not None and status.mac is not None
+        else set(),
         manufacturer="EcoFlow",
         model="P1 Energy Tracker",
         name="EcoFlow P1 Energy Tracker",
