@@ -85,6 +85,7 @@ def _install_sensor_stubs() -> None:
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
 
+    device_registry.CONNECTION_NETWORK_MAC = "mac"
     device_registry.DeviceInfo = DeviceInfo
     device_registry.async_get = lambda _hass: None
     sys.modules[device_registry.__name__] = device_registry
