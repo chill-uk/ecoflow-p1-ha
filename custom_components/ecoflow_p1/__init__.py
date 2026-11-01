@@ -12,6 +12,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import EcoFlowP1Api
 from .const import PLATFORMS
 from .coordinator import EcoFlowP1Coordinator
+from .status import P1StatusCoordinator
 
 
 @dataclass(slots=True)
@@ -19,6 +20,7 @@ class EcoFlowP1RuntimeData:
     """Runtime data for an EcoFlow P1 config entry."""
 
     coordinator: EcoFlowP1Coordinator
+    status_coordinator: P1StatusCoordinator
 
 
 type EcoFlowP1ConfigEntry = ConfigEntry[EcoFlowP1RuntimeData]
@@ -31,7 +33,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcoFlowP1ConfigEntry) ->
     coordinator = EcoFlowP1Coordinator(hass, entry, api)
     await coordinator.async_config_entry_first_refresh()
 
-    entry.runtime_data = EcoFlowP1RuntimeData(coordinator)
+    status_coordinator = P1StatusCoordinator(hass, api._client)
+    # Status failures never prevent the existing DSMR integration from loading.
+    await status_coordinator.async_refresh()
+    entry.runtime_data = EcoFlowP1RuntimeData(coordinator, status_coordinator)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
