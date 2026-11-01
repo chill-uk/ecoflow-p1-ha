@@ -221,7 +221,9 @@ async def async_setup_entry(
             for description in new
         )
 
-    async_add_entities([P1WifiRssiSensor(entry.runtime_data.status_coordinator, base_id)])
+    async_add_entities(
+        [P1WifiRssiSensor(entry.runtime_data.status_coordinator, base_id)]
+    )
 
     @callback
     def sync_mac() -> None:
@@ -230,7 +232,10 @@ async def async_setup_entry(
             return
         registry = dr.async_get(hass)
         device = registry.async_get_device(identifiers={(DOMAIN, base_id)})
-        if device is not None and (CONNECTION_NETWORK_MAC, status.mac) not in device.connections:
+        if (
+            device is not None
+            and (CONNECTION_NETWORK_MAC, status.mac) not in device.connections
+        ):
             registry.async_update_device(
                 device.id, add_connections={(CONNECTION_NETWORK_MAC, status.mac)}
             )
