@@ -13,7 +13,9 @@ from . import EcoFlowP1ConfigEntry
 from .status import P1StatusCoordinator
 
 
-async def async_setup_entry(hass, entry: EcoFlowP1ConfigEntry, async_add_entities) -> None:
+async def async_setup_entry(
+    hass, entry: EcoFlowP1ConfigEntry, async_add_entities
+) -> None:
     """Register status entities on the existing P1 device."""
     base_id = entry.unique_id or entry.entry_id
     coordinator = entry.runtime_data.status_coordinator
@@ -31,7 +33,9 @@ class P1StatusBinarySensor(CoordinatorEntity[P1StatusCoordinator], BinarySensorE
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator: P1StatusCoordinator, base_id: str, key: str) -> None:
+    def __init__(
+        self, coordinator: P1StatusCoordinator, base_id: str, key: str
+    ) -> None:
         super().__init__(coordinator)
         self._key = key
         self._attr_unique_id = f"{base_id}_{key}"
