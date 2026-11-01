@@ -27,6 +27,7 @@ def _install_sensor_stubs() -> None:
         ENERGY = "energy"
         GAS = "gas"
         POWER = "power"
+        SIGNAL_STRENGTH = "signal_strength"
         VOLTAGE = "voltage"
         WATER = "water"
 
@@ -59,8 +60,9 @@ def _install_sensor_stubs() -> None:
         "homeassistant.const", ModuleType("homeassistant.const")
     )
     ha_const.CONF_HOST = "host"
+    ha_const.CONNECTION_NETWORK_MAC = "mac"
     ha_const.EntityCategory = SimpleNamespace(DIAGNOSTIC="diagnostic")
-    ha_const.Platform = SimpleNamespace(SENSOR="sensor")
+    ha_const.Platform = SimpleNamespace(SENSOR="sensor", BINARY_SENSOR="binary_sensor")
     ha_const.UnitOfElectricCurrent = SimpleNamespace(AMPERE="A")
     ha_const.UnitOfElectricPotential = SimpleNamespace(VOLT="V")
     ha_const.UnitOfEnergy = SimpleNamespace(KILO_WATT_HOUR="kWh")
