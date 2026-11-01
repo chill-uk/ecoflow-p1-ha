@@ -235,7 +235,7 @@ async def async_setup_entry(
         if status is None or status.mac is None:
             return
         registry = dr.async_get(hass)
-        device = registry.async_get_device(identifiers={(DOMAIN, base_id)})
+        device = registry.async_get_device_by_identifier(DOMAIN, base_id)
         if device is None:
             return
         connection = (dr.CONNECTION_NETWORK_MAC, status.mac)
