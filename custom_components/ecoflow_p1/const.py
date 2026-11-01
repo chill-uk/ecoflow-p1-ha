@@ -22,4 +22,4 @@ API_PATH: Final = "/getdebugdata"
 REQUEST_TIMEOUT: Final = 4
 TRANSIENT_FAILURE_GRACE_SECONDS: Final = 15
 
-PLATFORMS: Final = [Platform.SENSOR]
+PLATFORMS: Final = [Platform.SENSOR, Platform.BINARY_SENSOR]
