@@ -15,7 +15,6 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
-    CONNECTION_NETWORK_MAC,
     EntityCategory,
     Platform,
     UnitOfElectricCurrent,
@@ -234,10 +233,10 @@ async def async_setup_entry(
         device = registry.async_get_device(identifiers={(DOMAIN, base_id)})
         if (
             device is not None
-            and (CONNECTION_NETWORK_MAC, status.mac) not in device.connections
+            and (dr.CONNECTION_NETWORK_MAC, status.mac) not in device.connections
         ):
             registry.async_update_device(
-                device.id, add_connections={(CONNECTION_NETWORK_MAC, status.mac)}
+                device.id, add_connections={(dr.CONNECTION_NETWORK_MAC, status.mac)}
             )
 
     sync_mac()
