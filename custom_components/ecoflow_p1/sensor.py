@@ -220,31 +220,37 @@ async def async_setup_entry(
             for description in new
         )
 
+    # Always register the core DSMR entities before optional device diagnostics.
+    discover_entities()
+    entry.async_on_unload(coordinator.async_add_listener(discover_entities))
+
     async_add_entities(
         [P1WifiRssiSensor(entry.runtime_data.status_coordinator, base_id)]
     )
 
     @callback
     def sync_mac() -> None:
+        """Best-effort MAC identity update; never interrupt DSMR setup."""
         status = entry.runtime_data.status_coordinator.data
         if status is None or status.mac is None:
             return
         registry = dr.async_get(hass)
         device = registry.async_get_device(identifiers={(DOMAIN, base_id)})
-        if (
-            device is not None
-            and (dr.CONNECTION_NETWORK_MAC, status.mac) not in device.connections
-        ):
-            registry.async_update_device(
-                device.id, add_connections={(dr.CONNECTION_NETWORK_MAC, status.mac)}
-            )
+        if device is None:
+            return
+        connection = (dr.CONNECTION_NETWORK_MAC, status.mac)
+        if connection in device.connections:
+            return
+        registry.async_update_device(
+            device.id,
+            new_connections=set(device.connections) | {connection},
+        )
 
     sync_mac()
     entry.async_on_unload(
         entry.runtime_data.status_coordinator.async_add_listener(sync_mac)
     )
-    discover_entities()
-    entry.async_on_unload(coordinator.async_add_listener(discover_entities))
+
 
 
 def _available_descriptions(
