@@ -35,6 +35,31 @@ class EcoFlowP1Client:
         """Return the configured host."""
         return self._host
 
+    async def async_get_json(self, path: str) -> dict[str, Any]:
+        """Fetch a known read-only firmware status endpoint."""
+        if path not in {
+            "/rpc/Shelly.GetDeviceInfo",
+            "/rpc/WiFi.GetStatus",
+            "/rpc/MQTT.GetStatus",
+        }:
+            raise ValueError("Unsupported device-status endpoint")
+        try:
+            async with asyncio.timeout(REQUEST_TIMEOUT):
+                async with self._session.get(
+                    f"http://{self._host}{path}", allow_redirects=False
+                ) as response:
+                    response.raise_for_status()
+                    payload = await response.json(content_type=None)
+        except (TimeoutError, ClientError, ValueError) as err:
+            raise EcoFlowP1TransportResponseError(
+                f"Device status request {path} failed: {type(err).__name__}"
+            ) from err
+        if not isinstance(payload, dict):
+            raise EcoFlowP1TransportResponseError(
+                f"Device status request {path} returned a non-object"
+            )
+        return payload
+
     async def async_get_debug_payload(self) -> Mapping[str, Any]:
         """Fetch one raw /getdebugdata payload."""
         try:
