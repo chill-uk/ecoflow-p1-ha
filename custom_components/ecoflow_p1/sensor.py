@@ -251,8 +251,6 @@ async def async_setup_entry(
         entry.runtime_data.status_coordinator.async_add_listener(sync_mac)
     )
 
-
-
 def _available_descriptions(
     data: EcoFlowP1Data, phase_mode: str | None = None
 ) -> list[EcoFlowP1SensorDescription]:
