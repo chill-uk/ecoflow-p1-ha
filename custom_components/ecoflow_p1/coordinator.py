@@ -70,9 +70,14 @@ class EcoFlowP1Coordinator(DataUpdateCoordinator[EcoFlowP1Data]):
         """Fetch the latest local telegram and metadata."""
         loop = asyncio.get_running_loop()
         try:
-            incoming = await self.api.async_get_data()
+            incoming = await self.api.async_get_data(
+                on_raw_telegram=self._capture_raw_telegram
+                if self.encrypted_capture.active
+                else None
+            )
         except EcoFlowP1Error as err:
-            self._capture_error(err)
+            if not isinstance(err, EcoFlowP1TelegramError):
+                self._capture_error(err)
             if self.telegram_debug and isinstance(err, EcoFlowP1TelegramError):
                 _LOGGER.warning(
                     "EcoFlow P1 DSMR telegram failed integrity or parsing "
@@ -108,7 +113,6 @@ class EcoFlowP1Coordinator(DataUpdateCoordinator[EcoFlowP1Data]):
         self._last_success_at = loop.time()
         validation = validate_required_obis(incoming.raw_telegram, self.phase_mode)
         crc = validate_crc(incoming.raw_telegram)
-        self._capture_telegram(incoming, crc, validation)
         if self.telegram_debug and not validation.valid:
             _LOGGER.warning(
                 "EcoFlow P1 DSMR telegram validation failed "
@@ -127,6 +131,16 @@ class EcoFlowP1Coordinator(DataUpdateCoordinator[EcoFlowP1Data]):
             incoming,
             self._last_success_at,
             frozenset(validation.invalid),
+        )
+
+    def _capture_raw_telegram(self, telegram: str) -> None:
+        """Encrypt the untouched HTTP telegram before validation or parsing."""
+        self.encrypted_capture.capture(
+            {
+                "outcome": "received_unparsed",
+                "telegram": telegram,
+                "phase_mode": self.phase_mode,
+            }
         )
 
     def _capture_error(self, err: EcoFlowP1Error) -> None:

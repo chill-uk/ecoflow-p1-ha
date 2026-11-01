@@ -99,6 +99,25 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data.firmware_version, "1.1.07")
         self.assertEqual(data.crc_error_times, 2)
 
+    async def test_raw_capture_runs_before_crc_and_parser(self) -> None:
+        """Capture the exact response even when the telegram is rejected."""
+        invalid = TELEGRAM.replace("00.123*kW", "00.124*kW")
+        received = []
+        client = api_module.EcoFlowP1Api(
+            FakeSession(FakeResponse({"debugdata": invalid})), "p1.local"
+        )
+        with self.assertRaises(api_module.EcoFlowP1TelegramError):
+            await client.async_get_data(on_raw_telegram=received.append)
+        self.assertEqual(received, [invalid])
+
+    async def test_raw_capture_on_valid_response(self) -> None:
+        received = []
+        client = api_module.EcoFlowP1Api(
+            FakeSession(FakeResponse({"debugdata": TELEGRAM})), "p1.local"
+        )
+        await client.async_get_data(on_raw_telegram=received.append)
+        self.assertEqual(received, [TELEGRAM])
+
     async def test_invalid_json_is_a_response_error(self) -> None:
         """Distinguish invalid JSON from a network failure."""
         client = api_module.EcoFlowP1Api(
