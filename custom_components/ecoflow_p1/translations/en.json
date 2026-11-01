@@ -164,6 +164,17 @@
       },
       "energy_export_total": {
         "name": "Energy export total"
+      },
+      "wifi_signal_strength": {
+        "name": "Wi-Fi signal strength"
+      }
+    },
+    "binary_sensor": {
+      "discoverable": {
+        "name": "Discoverable"
+      },
+      "mqtt_connected": {
+        "name": "MQTT connected"
       }
     }
   }
