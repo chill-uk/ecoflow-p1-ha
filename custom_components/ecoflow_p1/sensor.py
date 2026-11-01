@@ -548,7 +548,8 @@ class P1WifiRssiSensor(CoordinatorEntity, SensorEntity):
     @property
     def available(self) -> bool:
         return (
-            super().available and self.coordinator.data is not None
+            super().available
+            and self.coordinator.data is not None
             and self.coordinator.data.wifi_rssi is not None
         )
 
